@@ -1,12 +1,12 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
-import { dirname, join, relative, resolve } from 'node:path';
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { execFile as execFileCallback } from 'node:child_process';
 
 const execFile = promisify(execFileCallback);
-const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+import { digestDirectory, digestPath, parseBmadManifestVersion, repositoryRoot } from './skill-source-utils.mjs';
 const lockPath = join(repositoryRoot, '.harness', 'skill-sources.lock.json');
 
 export function classifyRevision(lockedRevision, remoteRevision) {
@@ -16,27 +16,6 @@ export function classifyRevision(lockedRevision, remoteRevision) {
 
 async function readLock() {
   return JSON.parse(await readFile(lockPath, 'utf8'));
-}
-
-async function listFiles(directory) {
-  const entries = await readdir(directory, { withFileTypes: true });
-  const files = await Promise.all(entries.map(async (entry) => {
-    const entryPath = join(directory, entry.name);
-    if (entry.isDirectory()) return listFiles(entryPath);
-    if (entry.isFile()) return [entryPath];
-    return [];
-  }));
-  return files.flat().sort();
-}
-
-async function digestDirectory(directory) {
-  const files = await listFiles(directory);
-  const hash = createHash('sha256');
-  for (const file of files) {
-    hash.update(relative(directory, file));
-    hash.update(await readFile(file));
-  }
-  return hash.digest('hex');
 }
 
 async function exists(path) {
@@ -66,46 +45,85 @@ async function npmVersion(packageName) {
   }
 }
 
-async function checkSkillCliSource(source) {
-  const sourcePath = join(repositoryRoot, source.sourceDirectory);
+async function checkGitSource(source, { root = repositoryRoot, checkUpstream = true } = {}) {
+  const sourcePath = join(root, source.sourceDirectory);
   const installed = await exists(sourcePath);
+  const provenancePath = join(sourcePath, '.harness-source.json');
+  const provenance = installed && await exists(provenancePath)
+    ? JSON.parse(await readFile(provenancePath, 'utf8'))
+    : null;
   const localDigest = installed ? await digestDirectory(sourcePath) : null;
+  const matchesLock = provenance?.source === source.source
+    && provenance?.revision === source.sourceRevision
+    && provenance?.contentDigest === source.contentDigest
+    && localDigest === source.contentDigest;
   const targetStates = await Promise.all(source.targets.map(async (target) => {
-    const targetPath = join(repositoryRoot, target, source.skill);
+    const targetPath = join(root, target, source.skill);
     if (!installed || !await exists(targetPath)) return { target, status: 'missing' };
     const targetDigest = await digestDirectory(targetPath);
     return { target, status: targetDigest === localDigest ? 'current' : 'drifted' };
   }));
-  const remoteRevision = await gitHead(source.source);
+  const remoteRevision = checkUpstream ? await gitHead(source.source) : null;
   return {
     id: source.id,
-    installed: installed ? 'present' : 'missing',
-    upstream: classifyRevision(source.sourceRevision, remoteRevision),
+    installed: matchesLock ? 'current' : installed ? 'provenance-mismatch' : 'missing',
+    upstream: checkUpstream ? classifyRevision(source.sourceRevision, remoteRevision) : 'not-checked',
     remoteRevision,
     targets: targetStates,
   };
 }
 
-async function checkBmad(source) {
-  const remoteVersion = await npmVersion(source.package);
-  const targetStates = await Promise.all(source.targets.map(async (target) => ({
-    target,
-    status: await exists(join(repositoryRoot, target)) ? 'current' : 'missing',
-  })));
+async function checkBmad(source, { root = repositoryRoot, checkUpstream = true } = {}) {
+  const manifestPath = join(root, '_bmad', '_config', 'manifest.yaml');
+  const manifest = await exists(manifestPath) ? await readFile(manifestPath, 'utf8') : null;
+  const installedVersion = manifest ? parseBmadManifestVersion(manifest) : null;
+  const remoteVersion = checkUpstream ? await npmVersion(source.package) : null;
+  const skillManifestPath = join(root, '_bmad', '_config', 'skill-manifest.csv');
+  const skillManifest = await exists(skillManifestPath) ? await readFile(skillManifestPath, 'utf8') : null;
+  const skillManifestDigest = skillManifest ? createHash('sha256').update(skillManifest).digest('hex') : null;
+  const skillNames = skillManifest?.split('\n').slice(1).filter(Boolean).map((line) => line.match(/^"([^"]+)"/)?.[1]) ?? [];
+  const adapterDigests = Object.entries(source.adapterDigests ?? {});
+  const adapterIntegrity = skillManifestDigest === source.skillManifestDigest && skillNames.length > 0 && adapterDigests.length > 0
+    ? await Promise.all(adapterDigests.map(async ([target, expectedDigest]) => {
+      const hash = createHash('sha256');
+      for (const skillName of skillNames) {
+        const path = join(root, target, skillName);
+        if (!await exists(path)) return false;
+        hash.update(skillName);
+        hash.update(await digestDirectory(path));
+      }
+      return hash.digest('hex') === expectedDigest;
+    })).then((results) => results.every(Boolean))
+    : false;
+  const targetStates = await Promise.all(source.targets.map(async (target) => {
+    const targetPath = join(root, target);
+    if (!await exists(targetPath)) return { target, status: 'missing' };
+    const expectedDigest = source.targetDigests?.[target];
+    return { target, status: expectedDigest && await digestPath(targetPath) === expectedDigest ? 'current' : 'drifted' };
+  }));
   return {
     id: source.id,
-    installed: 'present',
-    upstream: classifyRevision(source.installedVersion, remoteVersion),
+    installed: installedVersion === source.installedVersion && adapterIntegrity
+      ? 'current'
+      : installedVersion ? `integrity-mismatch (${installedVersion})` : 'missing',
+    upstream: checkUpstream ? classifyRevision(source.installedVersion, remoteVersion) : 'not-checked',
     remoteRevision: remoteVersion,
     targets: targetStates,
   };
 }
 
 function hasLocalDrift(result) {
-  return result.installed === 'missing' || result.targets.some((target) => target.status !== 'current');
+  return result.installed !== 'current' && result.installed !== 'present'
+    || result.targets.some((target) => target.status !== 'current');
 }
 
-function renderReport(results) {
+export function exitCodeForResults(results) {
+  if (results.some(hasLocalDrift)) return 1;
+  if (results.some((result) => result.upstream === 'update-available')) return 2;
+  return 0;
+}
+
+export function renderSkillSourceReport(results) {
   const lines = [
     '# Skill Source Check',
     '',
@@ -117,32 +135,32 @@ function renderReport(results) {
     lines.push(`| ${result.id} | ${result.upstream} | ${result.installed} | ${targets} |`);
   }
   lines.push('');
-  lines.push('An upstream update requires `update-skill-sources.mjs --apply`, a generated draft pull request, validation, and human approval before merge.');
+  lines.push('An upstream update requires `npm run harness -- update --apply` on a dedicated branch, validation, and human approval before merge.');
   return `${lines.join('\n')}\n`;
 }
 
-export async function checkSkillSources() {
-  const lock = await readLock();
+export async function checkSkillSources({ root = repositoryRoot, checkUpstream = true, lock: providedLock } = {}) {
+  const lock = providedLock ?? (root === repositoryRoot ? await readLock() : JSON.parse(await readFile(join(root, '.harness', 'skill-sources.lock.json'), 'utf8')));
   return Promise.all(lock.sources.map((source) => source.manager === 'bmad-method'
-    ? checkBmad(source)
-    : checkSkillCliSource(source)));
+    ? checkBmad(source, { root, checkUpstream })
+    : checkGitSource(source, { root, checkUpstream })));
 }
 
 async function main() {
   const reportIndex = process.argv.indexOf('--report');
+  const checkUpstream = !process.argv.includes('--offline');
   const reportPath = reportIndex === -1 ? null : resolve(repositoryRoot, process.argv[reportIndex + 1]);
   if (reportIndex !== -1 && !process.argv[reportIndex + 1]) {
     throw new Error('Usage: node .harness/scripts/check-skill-sources.mjs [--report path]');
   }
-  const results = await checkSkillSources();
-  const report = renderReport(results);
+  const results = await checkSkillSources({ checkUpstream });
+  const report = renderSkillSourceReport(results);
   if (reportPath) {
     await mkdir(dirname(reportPath), { recursive: true });
     await writeFile(reportPath, report);
   }
   process.stdout.write(report);
-  if (results.some(hasLocalDrift)) process.exitCode = 1;
-  else if (results.some((result) => result.upstream !== 'current')) process.exitCode = 2;
+  process.exitCode = exitCodeForResults(results);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

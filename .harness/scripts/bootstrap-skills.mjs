@@ -1,10 +1,7 @@
-import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
-import { execFile as execFileCallback } from 'node:child_process';
-
-const execFile = promisify(execFileCallback);
-const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+import { buildBmadInstallArgs, installPinnedGitSource, readSkillSourceLock, repositoryRoot, run } from './skill-source-utils.mjs';
+import { installSkillAdapters } from './install-skill-adapters.mjs';
+import { syncExternalSkills } from './sync-external-skills.mjs';
 
 export function parseBmadTools(argumentsList) {
   if (argumentsList.length === 0) return 'codex';
@@ -14,22 +11,26 @@ export function parseBmadTools(argumentsList) {
   throw new Error('Usage: node .harness/scripts/bootstrap-skills.mjs [--bmad-tools codex,claude-code,cursor]');
 }
 
-async function run(command, args) {
-  const { stdout, stderr } = await execFile(command, args, { cwd: repositoryRoot });
-  process.stdout.write(stdout);
-  process.stderr.write(stderr);
+export function buildBootstrapPlan(lock, bmadTools) {
+  const bmad = lock.sources.find((source) => source.manager === 'bmad-method');
+  if (!bmad) throw new Error('The source lock does not define BMad.');
+  return {
+    bmad: buildBmadInstallArgs(bmad, bmadTools),
+    gitSources: lock.sources.filter((source) => source.manager === 'git-source'),
+  };
+}
+
+export async function bootstrapSkills({ root = repositoryRoot, bmadTools = 'codex' } = {}) {
+  const lock = await readSkillSourceLock(root);
+  const plan = buildBootstrapPlan(lock, bmadTools);
+  await run('npx', plan.bmad, { cwd: root });
+  for (const source of plan.gitSources) await installPinnedGitSource(source, { root });
+  await installSkillAdapters({ root, tool: 'all' });
+  await syncExternalSkills({ root });
 }
 
 async function main() {
-  const bmadTools = parseBmadTools(process.argv.slice(2));
-  await run('npx', [
-    '--yes', 'bmad-method', 'install', '--yes', '--directory', '.', '--modules', 'bmm',
-    '--tools', bmadTools, '--no-shims',
-  ]);
-  await run('npx', ['--yes', 'skills', 'add', 'pbakaus/impeccable', '--skill', 'impeccable', '--agent', 'codex', '--copy', '--yes']);
-  await run('npx', ['--yes', 'skills', 'add', 'JuliusBrussee/caveman', '--skill', 'caveman', '--agent', 'codex', '--copy', '--yes']);
-  await run('node', ['.harness/scripts/install-skill-adapters.mjs', '--tool', 'all']);
-  await run('node', ['.harness/scripts/sync-external-skills.mjs']);
+  await bootstrapSkills({ bmadTools: parseBmadTools(process.argv.slice(2)) });
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

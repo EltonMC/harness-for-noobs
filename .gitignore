@@ -17,6 +17,8 @@ supabase/volumes/
 _bmad-output/
 _bmad/config.user.toml
 .harness/evidence/*.md
+.harness/.managed-adapters.json
+.harness/.update-backup/
 .impeccable/
 
 # Generated host adapters and installed external skills.

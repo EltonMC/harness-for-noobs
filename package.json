@@ -1,0 +1,13 @@
+{
+  "name": "harness-for-noobs",
+  "version": "0.2.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "harness": "node .harness/scripts/harness-cli.mjs",
+    "check": "node .harness/scripts/harness-cli.mjs check",
+    "test": "node --test .harness/scripts/*.test.mjs"
+  }
+}

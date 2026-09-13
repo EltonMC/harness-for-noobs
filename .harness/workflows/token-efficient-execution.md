@@ -12,3 +12,7 @@ Use this workflow for long, agent-driven work or when cost and context quality m
 8. At a tool or session boundary, replace `memory/handoffs/CURRENT.md` with a concise, evidence-linked continuation note. Capture only durable discoveries in the typed memory folders.
 
 Do not add a skill simply because it promises token savings. Add it only when it eliminates repeated discovery, context, or work in this repository.
+
+## Optional terminal-output filtering
+
+Tools such as RTK may reduce the terminal output an agent reads, but that does not directly measure total model-token or billing savings. Do not install one by default. Pilot it only in a dedicated work item with an unchanged task set, preserved exit codes and access to full logs, and provider-reported token measurements when the host exposes them. Keep it only when completed-task evidence shows a benefit without hiding failures.
