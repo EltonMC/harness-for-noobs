@@ -1,0 +1,122 @@
+version: 1
+project:
+  frontend: React
+  backend: Supabase
+  starter: Vite
+  package_manager: npm
+deployment:
+  frontend:
+    provider: Cloudflare Workers Static Assets
+    model: static SPA
+    runtime: Cloudflare Workers only for explicit edge/server behavior
+    deploy_contract: CI deploys the verified static build with Wrangler only after the protected main branch receives an approved pull request
+  backend:
+    provider: Supabase
+    browser_access: direct only through Auth, RLS, and the publishable client credential
+    privileged_logic: Supabase Edge Functions or another explicitly approved server boundary
+execution:
+  local_environment: Docker Compose
+  dependency_installation: inside the application container only
+  commands:
+    lint: unset
+    typecheck: unset
+    test: unset
+    build: unset
+    e2e: unset
+artifacts:
+  project_context: .harness/context/project-context.md
+  access_matrix: .harness/context/access-matrix.md
+  work_items: .harness/work-items
+  decisions: docs/decisions
+  evidence: .harness/evidence
+  memory: .harness/memory
+  design: .harness/design
+  deployment_workflow: .harness/workflows/frontend-deployment.md
+  local_development_workflow: .harness/workflows/local-development.md
+  git_delivery_workflow: .harness/workflows/git-pr-production.md
+  pull_request_template: .github/PULL_REQUEST_TEMPLATE.md
+  database_governance: .harness/database
+  upstream: .harness/upstream
+  downstream_delivery_gates: .harness/workflows/downstream-delivery-gates.md
+  skill_source_maintenance: .harness/workflows/skill-source-maintenance.md
+source_control:
+  provider_default: GitHub when a remote repository is created
+  protected_branch: main
+  change_flow: feature branch -> pull request -> required checks -> human approval -> squash merge -> CI deployment
+  direct_production_deploys: forbidden
+  merge_strategy: squash
+database:
+  platform: Supabase Postgres
+  schema_change_review: required before implementation and before merge
+  canonical_schema: versioned migrations
+  design_artifacts:
+    data_dictionary: .harness/database/DATA_DICTIONARY.md
+    change_proposals: .harness/database/changes
+    review_reports: .harness/database/reviews
+  quality_gates:
+    - local migration reset succeeds
+    - database lint has no errors
+    - pgTAP database tests pass
+    - security and performance advisors reviewed when available
+    - DBA review is approved or approved with recorded conditions
+upstream:
+  method: BMad Method
+  artifact_root: _bmad-output
+  approved_handoffs: .harness/upstream/approved
+  entry_rule: downstream implementation starts only from an approved BMad handoff or a proportional direct work item
+  source_of_truth: BMad planning artifacts define product intent; Harness artifacts define implementation evidence and operational controls
+  context_boundary:
+    default_downstream_context: approved handoff and scoped work item
+    source_access: retrieve only the smallest relevant source section for an unresolved decision, conflict, or high-risk boundary
+    prohibited: bulk, recursive, or default loading of _bmad-output artifacts
+    retrieval_record: record the source path, heading, and concise conclusion in the work item or refreshed handoff
+downstream:
+  sizing: proportional direct / session / story-or-epic
+  readiness: PASS / CONCERNS / FAIL before implementation
+  required_preimplementation_record:
+    - intent gaps
+    - irreversible actions
+    - footprint
+  course_correction: return material product, UX, or architecture changes upstream before continuing
+  independent_review: required in a fresh context for non-trivial, security, data, authorization, migration, or public-interface changes
+modes:
+  assisted: Ask only for decisions that materially change product scope, external state, or security posture.
+  autonomous: Execute a prepared work item without interactive questions; stop before destructive or external mutations not already authorized.
+tdd:
+  required_for_features: true
+  loop: red-green-refactor
+  evidence:
+    - initial failing test and reason
+    - passing focused test
+    - full relevant suite result
+token_economy:
+  default_response: concise
+  context_strategy: load artifacts on demand; use approved upstream handoffs as the default boundary and do not repeat repository context in prompts
+  measurement: record provider-reported input, output, reasoning, and cached tokens when available
+skill_maintenance:
+  external_sources_lock: .harness/skill-sources.lock.json
+  skills_cli_lock: skills-lock.json
+  update_policy: weekly non-mutating check; manually prepared draft pull request; human approval before merge
+conventions:
+  code_language: English
+  user_facing_copy: follow the documented product locale; translation keys remain English
+memory:
+  model: versioned markdown wiki with on-demand retrieval
+  canonical_sources:
+    - source code
+    - database migrations
+    - accepted architecture decisions
+  capture:
+    - architecture decisions and their rationale
+    - discovered gotchas and verified workarounds
+    - repeatable procedures
+    - active cross-agent handoffs
+  exclusions:
+    - raw transcripts
+    - unfiltered command output
+    - credentials or personal data
+design:
+  product_context: .harness/design/PRODUCT.md
+  visual_system: .harness/design/DESIGN.md
+  surface_briefs: .harness/design/surfaces
+  source_of_truth: committed design artifacts and accepted implementation
