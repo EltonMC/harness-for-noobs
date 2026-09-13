@@ -6,7 +6,7 @@ Decision
 
 ## Summary
 
-External skills are tracked by immutable version or revision, checked weekly, and updated only in a human-reviewed draft pull request. Portable copies are deliberately limited to explicit host directories.
+External skills are tracked by immutable version or revision, checked weekly, and updated only in a human-reviewed pull request. Bootstrap uses the fixed BMad installer version, fixed Git revisions, and content digests; offline checks validate provenance plus source and adapter integrity. Portable copies are deliberately limited to explicit host directories.
 
 ## Evidence
 

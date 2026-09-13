@@ -1,23 +1,40 @@
-import { cp, readFile, rm } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { cp, mkdir, readFile, rename, rm } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { repositoryRoot } from './skill-source-utils.mjs';
 
-const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const lockPath = join(repositoryRoot, '.harness', 'skill-sources.lock.json');
+async function replaceDirectory(source, destination) {
+  const candidate = `${destination}.harness-next`;
+  const previous = `${destination}.harness-previous`;
+  await mkdir(dirname(destination), { recursive: true });
+  await rm(candidate, { recursive: true, force: true });
+  await rm(previous, { recursive: true, force: true });
+  await cp(source, candidate, { recursive: true, force: true });
+  let hadPrevious = true;
+  try {
+    await rename(destination, previous);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    hadPrevious = false;
+  }
+  try {
+    await rename(candidate, destination);
+  } catch (error) {
+    if (hadPrevious) await rename(previous, destination);
+    throw error;
+  }
+  await rm(previous, { recursive: true, force: true });
+}
 
-export async function syncExternalSkills() {
-  const lock = JSON.parse(await readFile(lockPath, 'utf8'));
-  const managedSources = lock.sources.filter((source) => source.manager === 'skills-cli');
+export async function syncExternalSkills({ root = repositoryRoot } = {}) {
+  const lock = JSON.parse(await readFile(join(root, '.harness', 'skill-sources.lock.json'), 'utf8'));
+  const managedSources = lock.sources.filter((source) => source.manager === 'git-source');
   for (const source of managedSources) {
-    const sourcePath = join(repositoryRoot, source.sourceDirectory);
+    const sourcePath = join(root, source.sourceDirectory);
     for (const target of source.targets) {
-      const targetPath = join(repositoryRoot, target, source.skill);
+      const targetPath = join(root, target, source.skill);
       if (targetPath === sourcePath) continue;
-      await rm(targetPath, { recursive: true, force: true });
-      await cp(sourcePath, targetPath, {
-        recursive: true,
-        force: true,
-      });
+      await replaceDirectory(sourcePath, targetPath);
     }
   }
   return managedSources.map((source) => source.id);

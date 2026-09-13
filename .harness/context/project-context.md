@@ -11,6 +11,7 @@ To be defined. Capture the user, problem, primary outcome, and non-goals before 
 - Supabase provides database, authentication, storage, and server-side capabilities when needed.
 - Supabase Edge Functions are the default boundary for privileged backend logic. A Cloudflare Worker is added only for a specific edge/server responsibility, such as server-rendering or dynamic metadata.
 - TypeScript is the default for application code unless a documented decision changes it.
+- The Harness control plane runs on the current supported Node.js 22 LTS line. Its `package.json` declares the accepted major range.
 - Docker Compose is the local development and CI execution boundary. Production stays a Cloudflare static-asset deployment, built and verified in containers before CI deploys it.
 
 ## Engineering invariants

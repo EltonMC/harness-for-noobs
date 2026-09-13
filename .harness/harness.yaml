@@ -20,9 +20,10 @@ execution:
   commands:
     lint: unset
     typecheck: unset
-    test: unset
+    test: npm run test
     build: unset
     e2e: unset
+    harness_check: npm run check
 artifacts:
   project_context: .harness/context/project-context.md
   access_matrix: .harness/context/access-matrix.md

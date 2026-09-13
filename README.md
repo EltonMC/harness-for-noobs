@@ -29,8 +29,9 @@ This is a development Harness, not an application starter. It does not create yo
 Install these once:
 
 - [Git](https://git-scm.com/downloads)
-- [Node.js 20.12 or newer](https://nodejs.org/)
+- [Node.js 22 LTS](https://nodejs.org/)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [uv](https://docs.astral.sh/uv/) for BMad workflows
 - One AI coding tool: Codex, Claude Code, Cursor, Cline, GitHub Copilot, or Devin
 
 ### 2. Clone the Harness
@@ -44,30 +45,36 @@ Open that folder in your AI coding tool. Start by telling the agent what you wan
 
 > I want to build a small expense tracker. Use the Harness and help me turn this into the first work item.
 
-### 3. Install managed skills
+### 3. Check the computer before installing anything
 
-Run this once after cloning. It installs the official stable BMad package, creates the local Impeccable and Caveman sources, and generates adapters for the portable hosts:
-
-```bash
-node .harness/scripts/bootstrap-skills.mjs --bmad-tools codex
-```
-
-Replace `codex` with your BMad host identifier, or use a comma-separated list such as `codex,claude-code,cursor`. Run the following command to see BMad's current supported identifiers:
+Run this after cloning. It reports each missing requirement with the next action; it does not download or change anything.
 
 ```bash
-npx bmad-method install --list-tools
+npm run harness -- status
 ```
 
-Then reload your coding tool and invoke `bmad-help`.
+### 4. Install the approved skills
+
+When the status command is ready, install the exact BMad version and Git revisions committed in the source lock. This is the only command that downloads the external skills.
+
+```bash
+npm run harness -- setup --bmad-tools codex
+```
+
+Replace `codex` with a comma-separated host list such as `codex,claude-code,cursor`. Reload the coding tool, then invoke `bmad-help`.
+
+The installer never resolves “latest” skill content. If it cannot obtain a locked revision, it stops without substituting a newer release.
 
 ## Daily workflow
 
-1. Describe the desired outcome in plain language.
-2. For a meaningful feature, use BMad to create an approved upstream handoff. Do not put a whole PRD into every implementation chat.
-3. Create a work item in `.harness/work-items/` from the template.
-4. Write a behavior-focused test first, observe it fail, implement the smallest change, then refactor with tests green.
-5. For UI, database, Supabase authorization, Docker, or deployment work, let the matching Harness skill add its focused safety checks.
-6. Commit the focused change on a feature branch and open a pull request. Do not push directly to `main`.
+1. Run `npm run harness -- status` when changing computers or recovering from a failed setup.
+2. Describe the desired outcome in plain language.
+3. For a meaningful feature, use BMad to create an approved upstream handoff. Do not put a whole PRD into every implementation chat.
+4. Create a work item in `.harness/work-items/` from the template.
+5. Write a behavior-focused test first, observe it fail, implement the smallest change, then refactor with tests green.
+6. Run `npm run check` before a pull request. It validates the Harness controls themselves.
+7. For UI, database, Supabase authorization, Docker, or deployment work, let the matching Harness skill add its focused safety checks.
+8. Commit the focused change on a feature branch and open a pull request. Do not push directly to `main`.
 
 The agent instructions in [AGENTS.md](AGENTS.md) and the configuration in [.harness/harness.yaml](.harness/harness.yaml) are the source of truth.
 
@@ -87,34 +94,39 @@ BMad, Impeccable, and Caveman are external dependencies, not magic files that sh
 - `.harness/skill-sources.lock.json`
 - `skills-lock.json`
 
-Check them at any time:
+Check local integrity without calling the network:
 
 ```bash
-node .harness/scripts/check-skill-sources.mjs
+npm run harness -- status
 ```
 
-After reviewing release notes, prepare an update only on a dedicated branch:
+Prepare an intentional external-skill update only on a dedicated branch:
 
 ```bash
-node .harness/scripts/update-skill-sources.mjs --apply
+npm run harness -- update --apply
 ```
 
-The included GitHub workflow runs a weekly read-only check. A manual run with `prepare_update` enabled creates a draft pull request; you review it before merging.
+This command first rejects local drift, then discovers newer candidates, installs each candidate by its resolved immutable identity, records before/after integrity evidence, and changes only the locks. Run `npm run check`, inspect the lock diff and release notes, then open a draft pull request. The GitHub workflow performs a read-only check weekly.
+
+### Updating the Harness itself
+
+Keep product files separate from Harness-owned controls. Updates may change `AGENTS.md`, `.harness/`, and dedicated Harness workflows; they must never overwrite product code, product configuration, database migrations, secrets, design decisions, or approved handoffs.
+
+For each Harness release, create a `chore/harness-update-<version>` branch, compare the release with the current Harness-owned paths, and create one work item for the proposed update. Resolve a conflict in a Harness-owned file before applying it; a conflict touching a product-owned file stops the update and requires a scoped follow-up. Review the resulting pull request like any other change. This preserves project decisions even when the underlying starter evolves.
 
 ## Set up GitHub safely
 
 After pushing your own copy to GitHub:
 
 1. In **Settings → Branches**, protect `main`: require a pull request, passing checks, and resolved conversations.
-2. In **Settings → Actions**, allow the workflow to create draft pull requests if you want managed skill updates.
-3. Add deployment credentials only as GitHub secrets. Never commit `.env` files or Supabase `service_role` keys.
-4. Merge only reviewed pull requests. Production deployment belongs to CI after the merge.
+2. Add deployment credentials only as GitHub secrets. Never commit `.env` files or Supabase `service_role` keys.
+3. Merge only reviewed pull requests. Production deployment belongs to CI after the merge.
 
 The full guide is in [.harness/workflows/git-pr-production.md](.harness/workflows/git-pr-production.md).
 
 ## Important boundaries
 
-- This Harness selects React + Vite, Supabase, Docker Compose, and Cloudflare Workers Static Assets as the initial architecture. Change it through an ADR, not an ad-hoc prompt.
+- This Harness selects React + Vite, Supabase, Docker Compose, and Cloudflare Workers Static Assets as the initial architecture. The application scaffold is intentionally created only after its first user journey and authorization model are defined. Change the architecture through an ADR, not an ad-hoc prompt.
 - All developer-facing code and technical artifacts are English. Product-facing copy follows your product locale.
 - Every feature uses TDD. A missing test setup is work to complete before the feature, not a reason to skip tests.
 - Never expose Supabase secrets in browser code.

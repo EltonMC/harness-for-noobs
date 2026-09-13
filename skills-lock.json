@@ -1,17 +1,16 @@
 {
-  "version": 1,
-  "skills": {
+  "version": 2,
+  "notice": "The Harness installs external skills from .harness/skill-sources.lock.json so a checkout uses exact Git revisions without resolving the Skills CLI's current release.",
+  "sources": {
     "caveman": {
       "source": "JuliusBrussee/caveman",
-      "sourceType": "github",
-      "skillPath": "skills/caveman/SKILL.md",
-      "computedHash": "fa7c0951349ae3782a20e55c6d1e72e4c23585b7932bb5e021c17c4f8f055a07"
+      "revision": "15581d14007fd01fb3f132016741962f34936ca2",
+      "skillPath": "skills/caveman/SKILL.md"
     },
     "impeccable": {
       "source": "pbakaus/impeccable",
-      "sourceType": "github",
-      "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "computedHash": "a80e96114cca1a7324c3b5b72586b93687a12a2a05302563fa81e1e30987a049"
+      "revision": "cb56ed6c19a07329a9fa0cd4e657bee040156593",
+      "skillPath": "SKILL.md"
     }
   }
 }

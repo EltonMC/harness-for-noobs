@@ -4,12 +4,6 @@ on:
   schedule:
     - cron: '17 9 * * 1'
   workflow_dispatch:
-    inputs:
-      prepare_update:
-        description: Prepare a draft pull request with the current stable skill sources.
-        required: true
-        default: false
-        type: boolean
 
 permissions: {}
 
@@ -20,39 +14,25 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Install managed sources in the ephemeral runner
-        run: node .harness/scripts/bootstrap-skills.mjs --bmad-tools codex,claude-code,cline
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: Validate Harness script tests
+        run: npm test
+      - name: Install the committed managed sources in the ephemeral runner
+        run: npm run harness -- setup --bmad-tools codex,claude-code,cline
       - name: Check sources and adapters
         run: |
           set +e
           node .harness/scripts/check-skill-sources.mjs --report .harness/evidence/skill-source-report.md
           check_status=$?
           cat .harness/evidence/skill-source-report.md >> "$GITHUB_STEP_SUMMARY"
-          exit 0
-  prepare-update:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.prepare_update }}
-    needs: check
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Install managed sources in the ephemeral runner
-        run: node .harness/scripts/bootstrap-skills.mjs --bmad-tools codex,claude-code,cline
-      - name: Prepare update
-        run: node .harness/scripts/update-skill-sources.mjs --apply
-      - name: Create draft pull request
-        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1
-        with:
-          branch: chore/skill-source-updates
-          delete-branch: true
-          draft: true
-          title: 'chore: update managed agent skills'
-          commit-message: 'chore: update managed agent skills'
-          body: |
-            ## Managed skill update
-
-            Review the diff, the lockfiles, and `.harness/evidence/skill-source-report.md`.
-
-            Do not merge until the required skill and Harness validation passes.
+          if [ "$check_status" -eq 1 ]; then
+            echo "Local installation or adapter integrity failed." >&2
+            exit 1
+          fi
+          if [ "$check_status" -eq 2 ]; then
+            echo "A source update is available. Prepare it on a dedicated branch with npm run harness -- update --apply."
+            exit 0
+          fi
+          exit "$check_status"
