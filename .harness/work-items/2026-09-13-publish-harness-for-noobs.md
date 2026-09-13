@@ -19,8 +19,8 @@ Make the portable Harness understandable and reusable through the public `EltonM
 - [x] README explains purpose, prerequisites, installation, daily workflow, updates, and GitHub safeguards for newcomers.
 - [x] Third-party skills have licensing and attribution notices.
 - [x] Personal, generated, and third-party installed files are excluded from the initial commit and recreated from official sources.
-- [ ] The Harness is committed on a feature branch and pushed to the provided GitHub repository.
-- [ ] A pull request is opened for owner review; `main` is not directly changed.
+- [x] The Harness is committed on a feature branch and pushed to the provided GitHub repository.
+- [ ] A pull request is opened for owner review; `main` is not directly changed. It is pending an authenticated GitHub session.
 
 ## Scope
 
@@ -51,7 +51,7 @@ Make the portable Harness understandable and reusable through the public `EltonM
 - TDD green evidence: `node --test .harness/scripts/bootstrap-skills.test.mjs` passed after adding the validated parser and default target behavior.
 - TDD refactor evidence: parsing remains a small pure exported function; installation side effects stay in the executable entrypoint.
 - Checks run: `node --test .harness/scripts/bootstrap-skills.test.mjs` passed 3 tests; `node --test .harness/scripts/check-skill-sources.test.mjs` passed 3 tests; `node --check .harness/scripts/bootstrap-skills.mjs` passed; public configuration and lockfile validation passed; no prior project name or personal path remains in tracked source candidates.
-- Review findings and disposition: pending pull request.
+- Review findings and disposition: commit `b4425c9` is published on `feat/initial-harness`; create the pull request from the branch comparison page after GitHub authentication.
 - Remaining risks: users must configure their own GitHub protections and credentials after cloning.
 - Independent-review evidence or proportional exception: initial repository packaging; the owner reviews the generated pull request before merge.
 - Course-correction record: not needed.
