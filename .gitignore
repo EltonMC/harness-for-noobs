@@ -1,0 +1,36 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# JavaScript and build artifacts
+node_modules/
+dist/
+coverage/
+
+# Docker and Supabase local state
+.docker/
+supabase/.temp/
+supabase/volumes/
+
+# Generated planning, evidence, and Impeccable runtime artifacts
+_bmad-output/
+_bmad/config.user.toml
+.harness/evidence/*.md
+.impeccable/
+
+# Generated host adapters and installed external skills.
+.agents/
+.claude/
+.cline/
+.cursor/
+.devin/
+.github/skills/
+
+# Project-local BMad runtime; recreate it with bootstrap-skills.mjs.
+_bmad/
+
+# OS and editor noise
+.DS_Store
+*.swp
+*.swo

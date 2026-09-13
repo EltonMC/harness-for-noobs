@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "policy": {
+    "cadence": "weekly check",
+    "updateBoundary": "A source update may only be proposed in a draft pull request and requires human approval before merge.",
+    "stableChannelsOnly": true
+  },
+  "sources": [
+    {
+      "id": "bmad",
+      "manager": "bmad-method",
+      "package": "bmad-method",
+      "installedVersion": "6.12.0",
+      "targets": [
+        ".agents/skills/bmad-help/SKILL.md",
+        ".claude/skills/bmad-help/SKILL.md",
+        ".cline/skills/bmad-help/SKILL.md"
+      ]
+    },
+    {
+      "id": "impeccable",
+      "manager": "skills-cli",
+      "source": "pbakaus/impeccable",
+      "sourceRevision": "cb56ed6c19a07329a9fa0cd4e657bee040156593",
+      "sourceDirectory": ".agents/skills/impeccable",
+      "skill": "impeccable",
+      "targets": [
+        ".agents/skills",
+        ".claude/skills",
+        ".cline/skills",
+        ".cursor/skills",
+        ".github/skills",
+        ".devin/skills"
+      ]
+    },
+    {
+      "id": "caveman",
+      "manager": "skills-cli",
+      "source": "JuliusBrussee/caveman",
+      "sourceRevision": "15581d14007fd01fb3f132016741962f34936ca2",
+      "sourceDirectory": ".agents/skills/caveman",
+      "skill": "caveman",
+      "targets": [
+        ".agents/skills",
+        ".claude/skills",
+        ".cline/skills",
+        ".cursor/skills",
+        ".github/skills",
+        ".devin/skills"
+      ]
+    }
+  ]
+}
