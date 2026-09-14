@@ -32,9 +32,11 @@ Sem prévia (Cloudflare não configurado) ou quando o PR muda o banco: use o com
 ### Supabase impact
 
 - [ ] No Supabase change
-- [ ] DBA proposal and review included
-- [ ] Migration is backward compatible (expand/contract)
-- [ ] RLS allow/deny tests included
+- [ ] DBA proposal (with the owner-approved "Ficha do dado") and review included
+- [ ] Database gate report: 🟢 additive / 🟠 rewrites data / 🔴 deletes data (owner approval recorded)
+- [ ] Migration is backward compatible (expand/contract) and no published migration was edited
+- [ ] Every column classified (`pii:`), new tables in the data dictionary and access matrix
+- [ ] RLS allow/deny tests included, one per access scenario
 - [ ] Storage, Auth, RPC, or Edge Function impact described
 
 ### Reviewer checklist

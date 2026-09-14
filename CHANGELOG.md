@@ -2,6 +2,29 @@
 
 Mudanças do Harness, da mais nova para a mais antiga. Cada versão diz se você precisa fazer algo depois do merge do PR de atualização.
 
+## [Não lançado]
+
+### O que mudou
+
+- **Banco de dados com proteções que funcionam de verdade** (ADR 0014, guia `docs/guia/08-banco-de-dados.md`).
+  - **Ficha do dado:** a proposta de banco começa com perguntas em português para você aprovar: o que guardamos, quem vê, dados pessoais, retenção e exclusão. O agente não aprova por você.
+  - **Regras automáticas do banco** (`.harness/database/guards/`): RLS em toda tabela, views que respeitam a RLS, nenhuma regra "libera tudo" sem justificativa, funções seguras, contas não expostas, toda tabela documentada, **toda coluna classificada como dado pessoal ou não** e exclusão de conta sempre possível.
+  - **Verificador oficial de segurança do Supabase** (`supabase db advisors`) no `verify`, no CI e no deploy.
+  - **Guard de mudanças no banco** (`database-guard`): bloqueia editar migration já publicada e exige proposta aprovada, revisão do DBA, dicionário de dados e matriz de acesso. SQL que apaga ou reescreve dados exige uma segunda aprovação sua.
+  - **Comentário no PR** com o risco da mudança: 🟢 só adiciona, 🟠 reescreve, 🔴 apaga.
+  - **Deploy:** confere tudo o que ainda não rodou em produção; migration que apaga ou reescreve dados espera sua aprovação no GitHub. Em repositório privado, guarda a estrutura do banco por 30 dias antes de aplicar.
+  - **Agente longe da produção:** bloqueados psql/pg_dump para bancos remotos, `supabase db query --linked`, `supabase db dump` e ferramentas MCP de banco.
+  - O `verify` falha, em vez de pular, quando o trabalho muda o banco e o Supabase local está desligado.
+- **Correção:** o hook não bloqueia mais comandos com `*` (ex.: `ls pasta/*`) achando que poderiam ler o `.env`.
+- Os comentários de prévia e de banco no PR não se sobrescrevem mais.
+
+### Precisa fazer algo?
+
+Sim:
+
+1. Rode `npm run harness -- setup` (skills atualizadas) e `npm run harness -- github-protect --apply` (cria o ambiente `production-destructive`).
+2. Projetos que já têm tabelas: rode `npm run harness -- verify` com `pnpm db:start`. Se as novas regras apontarem problemas, peça ao agente "use harness-database-steward para adequar o banco às novas regras" e aprove a migration de correção.
+
 ## [0.3.0] — 2026-09-14
 
 ### O que mudou

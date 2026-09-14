@@ -21,7 +21,7 @@ Agents never read or write `.env` files. Give the owner these steps:
 
 1. `pnpm db:start` (once per session) and `pnpm dev`.
 2. Change code test-first; the agent hooks lint edited files and run the quick gate before the agent finishes.
-3. `npm run harness -- verify` before a pull request (`--e2e` for flows). With the local stack running it also runs `db:lint` and `db:test`.
+3. `npm run harness -- verify` before a pull request (`--e2e` for flows). It always runs the database change guard; with the local stack running it also runs `db:lint`, `db:test`, the Harness database guards, and the security advisors. When the branch changes `supabase/` and the stack is off, verify fails instead of skipping.
 4. `pnpm db:stop` when finished. `pnpm db:reset` rebuilds local data from migrations and seeds (local data is lost).
 
 ## Boundaries

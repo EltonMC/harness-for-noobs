@@ -14,8 +14,8 @@ Harness-owned: updated by Harness releases. Product-specific context and rules b
 ## Engineering invariants
 
 - Code, identifiers, tests, comments, logs, and developer-facing errors are English; user-facing copy follows `product_locale`; conversation with the owner follows `owner_locale`.
-- Database changes are versioned migrations with an approved DBA review.
-- Every `public` table has RLS enabled (`supabase/tests/database/000_rls_enabled.test.sql`), explicit grants, and allow/deny tests.
+- Database changes are versioned migrations with an approved DBA review and an owner-approved proposal; published migrations are immutable (`.harness/scripts/database-guard.mjs`).
+- The Harness guards in `.harness/database/guards/` and the Supabase security advisors pass: RLS on every `public` table, `security_invoker` views, no bare `true` policies, fixed `search_path`, classified personal-data columns, and account-deletable foreign keys; plus explicit grants and allow/deny tests.
 - The browser receives only the Supabase URL and publishable key; bundles are scanned for privileged keys.
 - Every behavior change follows red-green-refactor with evidence in its work item.
 - All changes flow through a branch and pull request; only CI deploys, after the owner merges.

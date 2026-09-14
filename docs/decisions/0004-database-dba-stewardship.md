@@ -47,3 +47,4 @@ The application uses Supabase Postgres and is built by people and agents with va
 - [Supabase RLS guidance](https://supabase.com/docs/guides/database/postgres/row-level-security)
 - [Supabase query optimization](https://supabase.com/docs/guides/database/query-optimization)
 - `.harness/workflows/database-change-review.md`
+- ADR 0014 turns this review into enforced checks.

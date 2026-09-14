@@ -1,0 +1,3 @@
+-- Local seed data, loaded by `pnpm db:reset`.
+-- Only fictitious data: never copy rows, e-mails, names, or documents from production.
+-- Use obviously fake values (for example, pessoa1@example.com) so a leak is harmless.

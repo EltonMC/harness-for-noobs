@@ -37,6 +37,12 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "::notice::No application yet; deployment skipped."
           fi
+      - name: Migrations require the local Supabase project
+        run: |
+          if ls supabase/migrations/*.sql > /dev/null 2>&1 && [ ! -f supabase/config.toml ]; then
+            echo "::error::supabase/migrations has files but supabase/config.toml is missing, so the migrations were never tested. Run supabase init in a pull request."
+            exit 1
+          fi
       - if: steps.app.outputs.exists == 'true'
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - if: steps.app.outputs.exists == 'true'
@@ -59,14 +65,19 @@ jobs:
           supabase db start
           supabase db lint --level warning --fail-on warning
           supabase test db
+          supabase test db .harness/database/guards
+          supabase db advisors --local --type security --level warn --fail-on warn
 
-  database:
-    name: Production database migrations
+  database-plan:
+    name: Classify pending production migrations
     needs: verify
     if: needs.verify.outputs.application == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     environment: production
+    outputs:
+      enabled: ${{ steps.config.outputs.enabled }}
+      requires_owner_approval: ${{ steps.classify.outputs.requires_owner_approval }}
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
@@ -87,16 +98,91 @@ jobs:
         uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
         with:
           version: 2.117.0
+      # Classifies everything production has not applied yet, not only this push's diff,
+      # so a destructive migration left pending by a rejected release still needs approval.
       - if: steps.config.outputs.enabled == 'true'
-        name: Apply pending migrations
+        name: List pending migrations without applying them
         run: |
           supabase link --project-ref "$SUPABASE_PROJECT_REF"
-          supabase db push
+          supabase db push --dry-run 2>&1 | tee pending-migrations.txt
+      - if: steps.config.outputs.enabled == 'true'
+        name: Classify the pending migrations
+        id: classify
+        run: node .harness/scripts/database-guard.mjs --pending-from pending-migrations.txt | tee -a "$GITHUB_STEP_SUMMARY"
+
+  database-approval:
+    name: Owner approval for destructive migrations
+    needs: database-plan
+    if: needs.database-plan.outputs.requires_owner_approval == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    # Configure required reviewers once with: npm run harness -- github-protect --apply
+    environment: production-destructive
+    steps:
+      - name: Require a human approval rule on the environment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! reviewers=$(gh api "repos/$GITHUB_REPOSITORY/environments/production-destructive" --jq '[.protection_rules[]? | select(.type == "required_reviewers")] | length' 2>&1); then
+            echo "::error::Could not read the production-destructive environment ($reviewers). Check it in Settings > Environments, then re-run this workflow."
+            exit 1
+          fi
+          if [ "$reviewers" = "0" ] || [ -z "$reviewers" ]; then
+            echo "::error::This release deletes or rewrites production data, but the production-destructive environment has no required reviewer. Run: npm run harness -- github-protect --apply (or add yourself as a required reviewer in Settings > Environments), then re-run this workflow."
+            exit 1
+          fi
+          echo "Approved by a required reviewer of production-destructive."
+
+  database:
+    name: Production database migrations
+    needs: [verify, database-plan, database-approval]
+    if: >-
+      !cancelled() && needs.verify.result == 'success' && needs.verify.outputs.application == 'true'
+      && needs.database-plan.result == 'success'
+      && (needs.database-approval.result == 'success' || needs.database-approval.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+      ENABLED: ${{ needs.database-plan.outputs.enabled }}
+    steps:
+      - if: env.ENABLED == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: env.ENABLED == 'true'
+        uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
+        with:
+          version: 2.117.0
+      - if: env.ENABLED == 'true'
+        name: Link the production project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+      # Schema only (no rows). Kept only for private repositories: on a public repository
+      # anyone could download policies and function bodies from the artifact.
+      - if: env.ENABLED == 'true' && github.event.repository.private
+        name: Save the production schema before migrating (structure only, no personal data)
+        run: supabase db dump --linked -f schema-before-migrations.sql
+      - if: env.ENABLED == 'true' && github.event.repository.private
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: schema-before-migrations
+          path: schema-before-migrations.sql
+          retention-days: 30
+      - if: env.ENABLED == 'true'
+        name: Apply pending migrations
+        run: supabase db push
 
   frontend:
     name: Production frontend
     needs: [verify, database]
-    if: needs.verify.outputs.application == 'true'
+    # Explicit results: a skipped database-approval job must not skip the frontend.
+    if: >-
+      !cancelled() && needs.verify.result == 'success' && needs.database.result == 'success'
+      && needs.verify.outputs.application == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: production

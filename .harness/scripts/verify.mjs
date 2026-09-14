@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readApplicationState } from './application-state.mjs';
+import { renderReport, runDatabaseGuard } from './database-guard.mjs';
 import { runCaptured } from './process-utils.mjs';
 import { renderFindings, scanDirectory } from './secret-scan.mjs';
 import { exists, repositoryRoot } from './skill-source-utils.mjs';
@@ -12,13 +13,22 @@ import { exists, repositoryRoot } from './skill-source-utils.mjs';
 const quickScripts = ['typecheck', 'test'];
 const fullScripts = ['lint', 'typecheck', 'test', 'build'];
 const databaseScripts = ['db:lint', 'db:test'];
+// Harness-owned database gates run directly, so they reach projects whose package.json predates them.
+const harnessDatabaseCommands = [
+  { script: 'db:guards', command: ['supabase', ['test', 'db', '.harness/database/guards']] },
+  { script: 'db:advisors', command: ['supabase', ['db', 'advisors', '--local', '--type', 'security', '--level', 'warn', '--fail-on', 'warn']] },
+];
 const failureMarker = /\b(?:error|fail(?:ed|ure)?|exception|cannot|unable|not found|expected|received)\b|✖|×|✗|FAIL|ERR!/i;
 
 export function planVerification(scripts, { quick = false, e2e = false, database = false } = {}) {
   const selected = (quick ? quickScripts : fullScripts).filter((script) => scripts[script]);
   const steps = selected.map((script) => ({ script, kind: 'script' }));
   if (!quick && scripts.build) steps.push({ script: 'bundle-secrets', kind: 'bundle-secrets' });
-  if (database) steps.push(...databaseScripts.filter((script) => scripts[script]).map((script) => ({ script, kind: 'database' })));
+  if (database && scripts['db:test']) {
+    if (!quick) steps.push({ script: 'db:guard', kind: 'database-guard' });
+    steps.push(...databaseScripts.filter((script) => scripts[script]).map((script) => ({ script, kind: 'database' })));
+    steps.push(...harnessDatabaseCommands.map((step) => ({ ...step, kind: 'database' })));
+  }
   if (e2e && scripts['test:e2e']) steps.push({ script: 'test:e2e', kind: 'script' });
   return steps;
 }
@@ -43,6 +53,7 @@ async function localDatabaseRunning(root) {
 
 export async function runVerification({
   root = repositoryRoot, quick = false, e2e = false, database = !quick, print = console.log, isDatabaseRunning = localDatabaseRunning,
+  guardDatabase = runDatabaseGuard,
 } = {}) {
   const application = await readApplicationState(root);
   const steps = planVerification(application.scripts, { quick, e2e, database });
@@ -55,6 +66,7 @@ export async function runVerification({
   const failures = [];
   const skipped = [];
   let databaseAvailability;
+  let guard;
   for (const step of steps) {
     if (step.kind === 'bundle-secrets' && failures.includes('build')) {
       skipped.push(step.script);
@@ -74,10 +86,16 @@ export async function runVerification({
     const startedAt = Date.now();
     let code;
     let output;
-    if (step.kind === 'bundle-secrets') {
+    if (step.kind === 'database-guard') {
+      guard = await guardDatabase({ root });
+      code = guard.ok ? 0 : 1;
+      output = renderReport(guard);
+    } else if (step.kind === 'bundle-secrets') {
       const findings = await exists(join(root, 'dist')) ? await scanDirectory(join(root, 'dist')) : [];
       code = findings.length === 0 ? 0 : 1;
       output = findings.length === 0 ? 'No secrets in dist/.' : `Secrets found in the browser bundle:\n${renderFindings(findings)}`;
+    } else if (step.command) {
+      ({ code, output } = await runCaptured(step.command[0], step.command[1], { cwd: root, timeoutMs: 600_000 }));
     } else {
       ({ code, output } = await runCaptured(application.packageManager, ['run', step.script], {
         cwd: root, env: { ...process.env, CI: process.env.CI ?? '1', FORCE_COLOR: '0' },
@@ -89,10 +107,15 @@ export async function runVerification({
     if (code === 0) {
       print(`✔ ${step.script} (${seconds}s)`);
     } else {
-      print(`✖ ${step.script} (${seconds}s) — log completo: ${logPath}\n${summarizeFailure(output)}`);
+      const summary = step.kind === 'database-guard' ? guard.problems.map((problem) => `  • ${problem}`).join('\n') : summarizeFailure(output);
+      print(`✖ ${step.script} (${seconds}s) — log completo: ${logPath}\n${summary}`);
       failures.push(step.script);
       if (quick) break;
     }
+  }
+  if (guard?.touchesDatabase && skipped.some((script) => script.startsWith('db:'))) {
+    failures.push('database-offline');
+    print(`✖ Este trabalho muda o banco (supabase/), mas os testes do banco não rodaram: ${databaseAvailability}.`);
   }
   if (failures.length > 0) print(`Falhou: ${failures.join(', ')}.`);
   else print(skipped.length > 0 ? `Verde, mas sem verificar: ${skipped.join(', ')}.` : 'Tudo verde.');
