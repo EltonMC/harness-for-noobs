@@ -6,8 +6,8 @@
 | --- | --- |
 | Trivial, low-risk correction with clear intent | Direct Harness work item; BMad optional |
 | One bounded feature | `bmad-spec`, then approved handoff |
-| Vague idea or uncertain value | `bmad-brainstorming`, `bmad-deep-recon`, product brief or PRFAQ, then decide whether to continue |
-| Product or several epics | product brief or PRFAQ → `bmad-prd` → `bmad-ux` when relevant → `bmad-architecture` → stories → `bmad-sprint-planning` |
+| Vague idea or uncertain value | `bmad-brainstorming`, then `bmad-product-brief`, then decide whether to continue |
+| Product or several epics | `bmad-product-brief` → `bmad-prd` → `bmad-ux` when relevant → `bmad-architecture` → stories → `bmad-sprint-planning` |
 
 ## Handoff gate
 
@@ -18,7 +18,9 @@
 5. Create an approved Harness handoff that links the source, states only the downstream contract, and maps any source decision that may need later retrieval.
 6. Treat the handoff as the downstream context boundary. Do not load `_bmad-output/` by default; resolve a decision gap, conflict, or high-risk boundary by searching for and reading only the mapped source section.
 7. Record the consulted path, heading, and concise conclusion in the work item or a refreshed handoff. Do not copy source sections or replay a planning transcript.
-8. Create the downstream work item. It applies TDD, Docker, DBA, security, PR, and deployment rules.
+8. Create the downstream work item. It applies TDD, local environment, DBA, security, PR, and deployment rules.
+
+The Harness installs the BMad `essential` skill profile (see `.harness/skill-sources.lock.json`). Research, PRFAQ, persona, and party skills are not installed by default.
 
 ## Course correction
 

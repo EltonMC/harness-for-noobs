@@ -11,4 +11,6 @@ For schema construction or alteration, also read the approved database change pr
 - For every exposed table, define least-privilege grants, enable RLS, add operation-specific policies, and write allow and deny tests before the policy implementation.
 - Treat views, RPC functions, Edge Functions, and Storage buckets as separate authorization surfaces.
 - Keep secret and `service_role` credentials out of React/browser code.
-- Verify the policy suite and record its exact result in the work item before declaring completion.
+- `supabase/tests/database/000_rls_enabled.test.sql` fails when any `public` table lacks RLS; never delete or weaken it. It runs in the Database gate only when `supabase/config.toml` exists — confirm it does. Add operation-specific allow and deny pgTAP tests next to it.
+- The browser bundle is scanned for privileged keys by `verify` and CI; a finding is a release blocker.
+- Verify the policy suite with `pnpm db:test` and record its result in the work item before declaring completion.

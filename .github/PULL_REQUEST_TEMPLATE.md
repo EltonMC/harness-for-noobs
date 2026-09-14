@@ -1,34 +1,46 @@
-## Outcome
+## O que muda
 
-Explain the user-visible change in plain language.
+<!-- Em linguagem simples: o que a pessoa usuária passa a conseguir fazer. -->
 
-## Evidence
+## Como testar
 
-- [ ] Readiness is `PASS`, or accepted `CONCERNS` are recorded in the work item
-- [ ] Intent gaps, irreversible actions, and footprint are recorded
-- [ ] TDD red evidence recorded in the work item
-- [ ] Focused test passed
-- [ ] Relevant Docker-based checks passed
-- [ ] Build completed from a clean container
-- [ ] Visual or accessibility evidence attached when the UI changed
+<!-- Passos numerados usando o link de prévia comentado pelo CI.
+Sem prévia (Cloudflare não configurado) ou quando o PR muda o banco: use o computador
+(pnpm db:reset, pnpm dev e abra http://localhost:5173). Ex.:
+1. Abra a prévia e entre com um usuário de teste.
+2. Clique em "Exportar".
+3. Resultado esperado: um arquivo CSV com os gastos do mês é baixado. -->
 
-## Risk and rollback
+1.
 
-- User, security, performance, or deployment risk:
-- Rollback or forward-fix approach:
+## Riscos e como desfazer
 
-## Supabase impact
+- Risco:
+- Como desfazer: reverter este PR / rollback no Cloudflare / migration de correção
+
+---
+
+### Evidence (agent-maintained, English)
+
+- Work item: `.harness/work-items/…` (or `direct` change)
+- Readiness: PASS / accepted CONCERNS
+- TDD red → green recorded in the work item
+- `npm run harness -- verify` → green (skipped gates explained)
+- UI changed: accessibility and visual evidence attached / not applicable
+- Independent review: done / not required because …
+
+### Supabase impact
 
 - [ ] No Supabase change
-- [ ] DBA proposal and review report included for a schema change
-- [ ] Migration included and compatible with the previous application version
-- [ ] RLS allow/deny evidence included
+- [ ] DBA proposal and review included
+- [ ] Migration is backward compatible (expand/contract)
+- [ ] RLS allow/deny tests included
 - [ ] Storage, Auth, RPC, or Edge Function impact described
 
-## Reviewer checklist
+### Reviewer checklist
 
 - [ ] Scope matches the work item
+- [ ] Preview or local test done following "Como testar"
 - [ ] Code and developer-facing text are in English
-- [ ] No secrets, local volumes, or generated files are committed
-- [ ] CI is green and conversations are resolved
-- [ ] Independent review completed when required, with findings disposition recorded
+- [ ] CI green and conversations resolved
+- [ ] No secrets, `.env` files, or generated files committed

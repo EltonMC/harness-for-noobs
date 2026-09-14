@@ -1,0 +1,170 @@
+name: Harness update
+
+# Runs only in projects created with Copier (.copier-answers.yml exists).
+# With the HARNESS_UPDATE_TOKEN secret (guide 07), it applies the newest Harness
+# release with a 3-way merge and opens a pull request. Without the token, it
+# opens an issue explaining how to apply the update with an agent, because the
+# default GITHUB_TOKEN cannot push workflow changes. Nothing is merged automatically.
+
+on:
+  schedule:
+    - cron: '23 9 * * 1'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: harness-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Propose Harness update
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    env:
+      HARNESS_UPDATE_TOKEN: ${{ secrets.HARNESS_UPDATE_TOKEN }}
+      BOT_EMAIL: harness-update@users.noreply.github.com
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.HARNESS_UPDATE_TOKEN || github.token }}
+      - name: Detect a generated project
+        id: project
+        run: |
+          if [ -f .copier-answers.yml ]; then echo "enabled=true" >> "$GITHUB_OUTPUT"; else echo "enabled=false" >> "$GITHUB_OUTPUT"; fi
+      - if: steps.project.outputs.enabled == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - if: steps.project.outputs.enabled == 'true'
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - if: steps.project.outputs.enabled == 'true'
+        name: Apply the newest Harness release
+        id: update
+        run: |
+          git config user.name "harness-update[bot]"
+          git config user.email "$BOT_EMAIL"
+          current=$(cat .harness/VERSION)
+          uvx copier@9.18.2 update --defaults --conflict inline
+          next=$(cat .harness/VERSION)
+          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            echo "Harness $current is already current."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo "changed=true"
+            echo "current=$current"
+            echo "next=$next"
+            echo "branch=chore/harness-update-$next"
+          } >> "$GITHUB_OUTPUT"
+      - if: steps.update.outputs.changed == 'true'
+        name: Summarize the update
+        env:
+          CURRENT: ${{ steps.update.outputs.current }}
+          NEXT: ${{ steps.update.outputs.next }}
+        run: |
+          if node --test .harness/scripts/*.test.mjs .harness/hooks/*.test.mjs > /tmp/harness-tests.log 2>&1; then
+            echo "✅ Testes do Harness passaram." > /tmp/tests.md
+          else
+            echo "❌ Testes do Harness falharam. Não faça merge; peça ao agente: \"use harness-recovery\"." > /tmp/tests.md
+          fi
+          git diff -z --name-only | xargs -0 -r grep -l '^<<<<<<< ' 2>/dev/null > /tmp/conflicts.txt || true
+          node -e '
+            const fs = require("fs");
+            const [current] = process.argv.slice(1);
+            const text = fs.existsSync("CHANGELOG.md") ? fs.readFileSync("CHANGELOG.md", "utf8") : "";
+            const newer = text.split(/^## /m).slice(1).filter((section) => {
+              const version = section.match(/^\[?(\d+\.\d+\.\d+)/)?.[1];
+              return version && version.localeCompare(current, undefined, { numeric: true }) > 0;
+            });
+            fs.writeFileSync("/tmp/notes.md", newer.map((section) => `## ${section.trim()}`).join("\n\n") || "Veja CHANGELOG.md.");
+          ' "$CURRENT"
+
+      - if: steps.update.outputs.changed == 'true' && env.HARNESS_UPDATE_TOKEN != ''
+        name: Open or refresh the update pull request
+        env:
+          GH_TOKEN: ${{ secrets.HARNESS_UPDATE_TOKEN }}
+          CURRENT: ${{ steps.update.outputs.current }}
+          NEXT: ${{ steps.update.outputs.next }}
+          BRANCH: ${{ steps.update.outputs.branch }}
+        run: |
+          if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
+            git fetch origin "$BRANCH"
+            foreign=$(git log --format='%ae' "origin/$BRANCH" --not origin/HEAD | grep -vx "$BOT_EMAIL" || true)
+            if [ -n "$foreign" ]; then
+              echo "::notice::$BRANCH already has commits from people (conflict resolution). Leaving it untouched."
+              exit 0
+            fi
+          fi
+          git switch -C "$BRANCH"
+          git add -A
+          git commit -m "chore: update Harness $CURRENT -> $NEXT"
+          git push --force origin "$BRANCH"
+          {
+            echo "## Atualização do Harness: $CURRENT → $NEXT"
+            echo
+            echo "Este PR foi aberto automaticamente e só altera arquivos do Harness. Arquivos do seu produto (código, README, package.json, .harness/project.yaml, contexto, design, memória e work items) não são tocados."
+            echo
+            cat /tmp/tests.md
+            if [ -s /tmp/conflicts.txt ]; then
+              echo
+              echo "⚠️ **Conflitos para resolver antes do merge** (peça ao agente: \"resolva os conflitos deste PR do Harness mantendo as decisões do meu produto\"):"
+              sed 's/^/- /' /tmp/conflicts.txt
+            fi
+            echo
+            echo "### O que mudou"
+            echo
+            cat /tmp/notes.md
+            echo
+            echo "### Como aprovar"
+            echo
+            echo "1. Leia a seção **Precisa fazer algo?** de cada versão acima."
+            echo "2. Confira se todos os checks estão verdes."
+            echo "3. Faça o merge (squash). Depois rode \`npm run harness -- setup\` no seu computador."
+          } > /tmp/pr-body.md
+          number=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+          if [ -n "$number" ]; then
+            gh pr edit "$number" --body-file /tmp/pr-body.md
+          else
+            gh pr create --head "$BRANCH" --title "Atualização do Harness $CURRENT → $NEXT" --body-file /tmp/pr-body.md
+          fi
+
+      - if: steps.update.outputs.changed == 'true' && env.HARNESS_UPDATE_TOKEN == ''
+        name: Open or refresh an update issue (no token configured)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT: ${{ steps.update.outputs.current }}
+          NEXT: ${{ steps.update.outputs.next }}
+        run: |
+          title="Nova versão do Harness disponível: $CURRENT → $NEXT"
+          {
+            echo "## $title"
+            echo
+            echo "Para receber atualizações como pull request automático, configure o secret \`HARNESS_UPDATE_TOKEN\` (guia \`docs/guia/07-atualizando-o-harness.md\`)."
+            echo
+            echo "### Atualizar agora com o agente"
+            echo
+            echo "Peça ao agente: **\"atualize o Harness para a versão $NEXT seguindo o guia 07\"**. Ou rode:"
+            echo
+            echo '```bash'
+            echo "git switch -c chore/harness-update-$NEXT"
+            echo "uvx copier@9.18.2 update --defaults --conflict inline"
+            echo "npm run check"
+            echo '```'
+            echo
+            echo "### O que mudou"
+            echo
+            cat /tmp/notes.md
+          } > /tmp/issue-body.md
+          number=$(gh issue list --state open --search "in:title \"Nova versão do Harness disponível\"" --json number --jq '.[0].number')
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --title "$title" --body-file /tmp/issue-body.md
+          else
+            gh issue create --title "$title" --body-file /tmp/issue-body.md
+          fi

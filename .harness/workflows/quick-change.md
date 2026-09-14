@@ -2,13 +2,13 @@
 
 Use for a clear, low-risk change with a narrow scope.
 
-1. Classify the change as `direct` only when its intent, footprint, and reversibility are clear and low risk. Otherwise classify it as `session` and record a readiness verdict in the work item.
-2. Create `.harness/work-items/<id>.md` from the work-item template. Record intent gaps, irreversible actions, footprint, and any condition required to proceed.
-3. Confirm the acceptance criteria, affected files, and configured checks.
-4. Write the smallest test that demonstrates the requested behavior, then run it and record its intended failure.
-5. Implement the smallest coherent change that makes the focused test pass.
-6. Refactor only while the focused test and relevant suite remain green.
-7. Run relevant checks and record their exact outcome.
-8. Request a fresh-context independent review when security, data access, a public interface, or non-trivial behavior is involved.
+1. Classify: `direct` only when intent, footprint, and reversibility are clear and low risk (text, style, obvious one-line fix). Otherwise it is `session`.
+2. Branch: stay on the current work branch, or `git switch -c fix/<name>` when on `main` (never commit to `main`).
+3. `direct`: no work-item file; the commit message states the outcome. `session`: create a work item from `.harness/templates/work-item.md`.
+4. Write the smallest test that demonstrates the behavior when behavior changes; run it and confirm the intended failure. Pure copy or style changes need no new test but must keep the suite green.
+5. Implement the smallest coherent change; refactor only with tests green.
+6. `npm run harness -- verify`.
+7. Request a fresh-context review when security, data access, a public interface, or non-trivial behavior is involved.
+8. Deliver with `harness-git-pr-delivery`.
 
-When BMad is available, a `session` change maps to `bmad-spec` followed by `bmad-build`; use `bmad-code-review` for the independent review gate.
+When BMad is available, a `session` change may use `bmad-spec` then `bmad-build`; use `bmad-code-review` for the review gate.

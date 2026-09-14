@@ -1,0 +1,10 @@
+# Product-owned configuration. Harness updates never overwrite this file.
+project_name: "{{ project_name | replace('\\', '\\\\') | replace('"', '\\"') }}"
+owner_locale: {{ owner_locale }}
+product_locale: {{ product_locale }}
+commands:
+  lint: unset
+  typecheck: unset
+  test: unset
+  build: unset
+  e2e: unset

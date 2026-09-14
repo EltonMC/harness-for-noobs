@@ -1,25 +1,25 @@
-import { cp, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
+import { cp, mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
-import { execFile as execFileCallback } from 'node:child_process';
+import { agentsCoveringTargets, bmadToolsFor, skillDirectoriesFor } from './agent-hosts.mjs';
 import { checkSkillSources, exitCodeForResults, renderSkillSourceReport } from './check-skill-sources.mjs';
-import { buildBmadInstallArgs, digestDirectory, digestPath, exists, installPinnedGitSource, readSkillSourceLock, repositoryRoot, resolvePinnedGitContentDigest, run } from './skill-source-utils.mjs';
+import { commandOutput } from './process-utils.mjs';
+import { communicationLanguageFor, readProjectConfig } from './project-config.mjs';
+import {
+  buildBmadInstallArgs, digestBmadAdapter, installPinnedGitSource, profileSkillNames, pruneBmadSkills, readBmadSkillNames,
+  readSkillSourceLock, repositoryRoot, resolvePinnedGitContentDigest, run,
+} from './skill-source-utils.mjs';
 import { syncExternalSkills } from './sync-external-skills.mjs';
 
-const execFile = promisify(execFileCallback);
 const lockPath = join(repositoryRoot, '.harness', 'skill-sources.lock.json');
 
 async function gitHead(source) {
-  const { stdout } = await execFile('git', ['ls-remote', `https://github.com/${source}.git`, 'HEAD']);
-  return stdout.trim().split(/\s+/)[0];
+  return (await commandOutput('git', ['ls-remote', `https://github.com/${source}.git`, 'HEAD']))?.split(/\s+/)[0] ?? null;
 }
 
 async function npmVersion(packageName) {
-  const { stdout } = await execFile('npm', ['view', packageName, 'version']);
-  return stdout.trim();
+  return commandOutput('npm', ['view', packageName, 'version']);
 }
 
 export function buildUpdatedLock(lock, candidates) {
@@ -46,25 +46,13 @@ async function hydrateGitContentDigests(lock) {
   }
 }
 
-async function hydrateBmadIntegrity(lock) {
+export async function hydrateBmadIntegrity(lock, { root = repositoryRoot, skillDirectory }) {
   const source = lock.sources.find((entry) => entry.manager === 'bmad-method');
-  const manifestPath = join(repositoryRoot, '_bmad', '_config', 'skill-manifest.csv');
-  source.skillManifestDigest = await digestPath(manifestPath);
-  const skillNames = (await readFile(manifestPath, 'utf8')).split('\n').slice(1).filter(Boolean).map((line) => line.match(/^"([^"]+)"/)?.[1]);
-  const adapterDirectories = Object.keys(source.adapterDigests ?? {});
-  source.adapterDigests = {};
-  for (const target of adapterDirectories) {
-    const hash = createHash('sha256');
-    for (const skillName of skillNames) {
-      hash.update(skillName);
-      hash.update(await digestDirectory(join(repositoryRoot, target, skillName)));
-    }
-    source.adapterDigests[target] = hash.digest('hex');
-  }
-  source.targetDigests = Object.fromEntries(await Promise.all(source.targets.map(async (target) => [
-    target,
-    await digestPath(join(repositoryRoot, target)),
-  ])));
+  const manifest = await readBmadSkillNames(root);
+  if (!manifest) throw new Error('BMad did not produce _bmad/_config/skill-manifest.csv.');
+  source.skillManifestDigest = manifest.digest;
+  source.adapterDigest = await digestBmadAdapter(root, skillDirectory, profileSkillNames(source, manifest.names));
+  if (!source.adapterDigest) throw new Error(`BMad profile skills are missing from ${skillDirectory}.`);
 }
 
 async function pathExists(path) {
@@ -76,14 +64,11 @@ async function pathExists(path) {
   }
 }
 
-async function snapshotManagedState(lock) {
+async function snapshotManagedState(lock, skillDirectories) {
   const directory = await mkdtemp(join(tmpdir(), 'harness-skill-update-'));
-  const managedPaths = new Set(['_bmad', '.harness/.managed-adapters.json']);
-  const bmad = lock.sources.find((entry) => entry.manager === 'bmad-method');
-  for (const target of Object.keys(bmad?.adapterDigests ?? {})) managedPaths.add(target);
+  const managedPaths = new Set(['_bmad', '.harness/.managed-adapters.json', ...skillDirectories]);
   for (const source of lock.sources.filter((entry) => entry.manager === 'git-source')) {
     managedPaths.add(source.sourceDirectory);
-    for (const target of source.targets) managedPaths.add(join(target, source.skill));
   }
   const paths = [];
   for (const path of managedPaths) {
@@ -120,15 +105,18 @@ function hasUpdate(lock, candidates) {
     : candidates[source.id] !== source.sourceRevision);
 }
 
-async function updatePinnedSources(nextLock) {
+async function updatePinnedSources(nextLock, agents) {
   const nextBmad = nextLock.sources.find((source) => source.manager === 'bmad-method');
   if (!nextBmad) throw new Error('The source lock does not define BMad.');
-  await run('npx', buildBmadInstallArgs(nextBmad, 'codex,claude-code,cline'));
-  await hydrateBmadIntegrity(nextLock);
+  const skillDirectories = skillDirectoriesFor(agents);
+  const communicationLanguage = communicationLanguageFor((await readProjectConfig(repositoryRoot)).owner_locale);
+  await run('npx', buildBmadInstallArgs(nextBmad, bmadToolsFor(agents), { communicationLanguage }));
+  await pruneBmadSkills({ root: repositoryRoot, source: nextBmad, skillDirectories });
+  await hydrateBmadIntegrity(nextLock, { skillDirectory: skillDirectories[0] });
   for (const source of nextLock.sources.filter((entry) => entry.manager === 'git-source')) {
-    await installPinnedGitSource(source);
+    if (source.targets.some((target) => skillDirectories.includes(target))) await installPinnedGitSource(source);
   }
-  await syncExternalSkills();
+  await syncExternalSkills({ lock: nextLock, skillDirectories });
 }
 
 async function main() {
@@ -137,6 +125,9 @@ async function main() {
   }
 
   const currentLock = await readSkillSourceLock();
+  // Updates install and verify every locked target, not only this machine's agents.
+  const agents = agentsCoveringTargets(currentLock);
+  const skillDirectories = skillDirectoriesFor(agents);
   const localResults = await checkSkillSources({ checkUpstream: false });
   if (exitCodeForResults(localResults) === 1) {
     throw new Error('Local skill-source integrity is not current. Run `npm run harness -- setup` before preparing an update.');
@@ -148,11 +139,12 @@ async function main() {
   }
   const nextLock = buildUpdatedLock(currentLock, candidates);
   await hydrateGitContentDigests(nextLock);
-  const snapshot = await snapshotManagedState(currentLock);
+  const snapshot = await snapshotManagedState(currentLock, skillDirectories);
   try {
+    await mkdir(join(repositoryRoot, '.harness', 'evidence'), { recursive: true });
     await writeFile(join(repositoryRoot, '.harness', 'evidence', 'skill-source-update-before.md'), renderSkillSourceReport(localResults));
-    await updatePinnedSources(nextLock);
-    const afterResults = await checkSkillSources({ checkUpstream: false, lock: nextLock });
+    await updatePinnedSources(nextLock, agents);
+    const afterResults = await checkSkillSources({ checkUpstream: false, lock: nextLock, skillDirectories });
     if (exitCodeForResults(afterResults) !== 0) {
       throw new Error('Post-update integrity verification failed; restoring the previously locked installation.');
     }

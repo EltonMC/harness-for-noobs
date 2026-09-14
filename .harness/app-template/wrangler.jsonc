@@ -1,0 +1,11 @@
+{
+  // Static SPA on Cloudflare Workers Static Assets (docs/decisions/0001).
+  // Deployments run only from CI; see .github/workflows/app-deploy.yml.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "__WORKER_NAME__",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}

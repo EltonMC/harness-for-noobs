@@ -5,10 +5,11 @@ description: Plan and execute a repository task with a bounded, reusable context
 
 Read `.harness/workflows/token-efficient-execution.md` and the current work item.
 
-- Search `.harness/memory/` by task terms, then load only matching pages, linked project context, decisions, affected files, and current verification evidence.
-- For upstream-backed work, load the approved handoff and work item, not `_bmad-output/`. Retrieve a single mapped source section only for an unresolved decision, conflict, or high-risk boundary; capture its path, heading, and concise conclusion.
-- Keep exploration, implementation, and review handoffs separate. Persist conclusions, not transcripts or raw logs.
-- Use a second agent only for independent work that avoids duplicated file reading or testing.
-- Return concise evidence: changed paths, commands, results, risks, and next state.
-- If the host reports usage, record input, output, reasoning, and cached tokens in the work item. Do not infer savings from shorter prose alone.
-- At an agent or session change, write an evidence-linked, compact continuation note in `.harness/memory/handoffs/CURRENT.md`.
+- Prefer deterministic commands over agent work: `npm run harness -- init-app`, `verify`, `doctor`, and `check` cost no reasoning tokens and print only what matters.
+- Locate before reading: use the `harness-scout` subagent (small model) or targeted search, then open excerpts of the named files only.
+- Load the approved handoff and work item, not `_bmad-output/`; retrieve one mapped section only for an unresolved decision.
+- Never paste full logs. Read the failure summary from `verify`; open `.harness/logs/<step>.log` only around the reported error.
+- Separate exploration, implementation, and review contexts. Reviewers get the diff, acceptance criteria, and risks — not the transcript.
+- Caveman compression is for agent-to-agent handoffs and internal notes only. Talk to the person in clear, complete sentences.
+- Start a fresh session (`/clear`) between unrelated tasks; write `.harness/memory/handoffs/CURRENT.md` first when work continues.
+- When the host reports usage (Claude Code `/cost` or `/context`, `ccusage`, Codex `/status`), record input, output, and cached tokens in the work item. Compare completed tasks, not response length.

@@ -1,42 +1,43 @@
 # Agent Instructions
 
-This repository contains a portable development harness for a React and Supabase application. Treat the files in `.harness/` as the source of truth for agent workflows and evidence.
+This repository uses the Harness: a portable process for building a React + Vite SPA on Cloudflare Workers Static Assets with Supabase, developed by AI agents for an owner who may have little software experience. `.harness/harness.yaml` (Harness-owned) lists every artifact path; `.harness/project.yaml` (product-owned) holds the owner and product locales and application commands; project-specific rules live in `.harness/context/project-context.md`; architecture decisions live in `docs/decisions/`.
 
-The accepted frontend architecture is React + Vite as a static SPA on Cloudflare Workers Static Assets, with Supabase as the backend. Read `docs/decisions/0001-frontend-hosting-cloudflare-workers.md` before proposing a hosting or runtime change.
+## Talking to the owner
 
-The accepted delivery process is Docker Compose locally and in CI, then GitHub pull requests into protected `main`. Read `docs/decisions/0003-docker-git-pr-production-governance.md` before changing Docker, Git, CI, or deployment behavior.
+- Speak in `owner_locale` from `.harness/project.yaml` (default Portuguese), in plain language. Explain a technical term the first time it appears. One question at a time. `product_locale` is only for text the product's end users see.
+- Start unclear requests with `harness-start`; when something breaks, use `harness-recovery`.
+- End each task with: what changed, how to see it, what is open, the next step.
 
-For non-trivial upstream product work, use `harness-upstream-bmad` and the installed BMad skills. Only an approved upstream handoff may enter downstream implementation; read `docs/decisions/0005-bmad-upstream-integration.md` and `docs/decisions/0007-upstream-context-on-demand.md` before changing that boundary.
+## Enforced guardrails (do not work around them)
 
-## Working rules
+Hooks, Git hooks, and CI block: commits or pushes to an existing `main`, force pushes, skipping Git hooks, reading or writing `.env` files, secrets in files or the browser bundle, remote Supabase or Cloudflare changes, merging PRs, and editing generated skills or locks. When blocked, explain the reason to the owner and take the safe path the message gives. Anything involving `.env.local` is done by the owner, following your exact instructions. Changes to the protections themselves (`.claude/settings.json`, `.codex/config.toml`, `.harness/hooks/`, `.harness/git-hooks/`, `.github/workflows/`) need the owner's explicit approval.
 
-- Start each change from a work item that states its outcome, acceptance criteria, affected areas, and verification plan.
-- Size each change before implementation: direct for a clear, low-risk correction; session-sized for one bounded outcome; story or epic for upstream-planned work. Record intent gaps, irreversible actions, footprint, and a `PASS`/`CONCERNS`/`FAIL` readiness verdict for non-trivial work.
-- Keep product decisions, architecture decisions, and implementation evidence in the artifact locations declared in `.harness/harness.yaml`.
-- Query `.harness/memory/` only for the task's domain; load the matching page, never the whole memory tree. Capture durable decisions, gotchas, procedures, and cross-agent handoffs as concise Markdown, never as transcripts or raw logs.
-- Treat source code, migrations, and accepted ADRs as canonical. Update or retire a conflicting memory page instead of trusting stale memory.
-- Use BMad artifacts when BMad is installed; do not require BMad to perform ordinary work.
-- Treat `_bmad-output/` as canonical upstream reference material, not default downstream context. Start from the approved handoff and work item; retrieve only the smallest mapped source section when a decision is unresolved, conflicting, or high risk, then record the concise conclusion.
-- Treat BMad, Impeccable, and Caveman as versioned external dependencies. Read `.harness/workflows/skill-source-maintenance.md`; do not manually edit or bulk-copy their installed files, and never merge an update without the required PR review.
-- Prefer small, reviewable changes. Do not combine feature work with unrelated refactors.
-- Keep code easy for agents to navigate: focused modules, specific searchable names, predictable paths, headless checks, and structured logs when logging is needed.
-- Write code and developer-facing technical text in English: identifiers, paths, tests, comments, logs, API/database names, and errors. User-facing copy follows the documented product locale; its translation keys remain English.
-- For UI work, read the relevant `.harness/design/` context. Define the user job and interaction states before code, then use `harness-ux-tdd`; visual polish never replaces accessible, behavior-focused tests.
-- Develop every feature with TDD: write a behavior-focused test, run it to observe the intended failure, implement the minimum change that makes it pass, then refactor with the suite green.
-- A missing test harness is setup work to complete before the first feature; it is not an exception to TDD.
-- Stop and route a material requirement, UX, or architecture discovery back upstream. Do not silently correct course only in downstream code or a pull request.
-- Require a fresh-context independent review before PR for non-trivial, security, data, authorization, migration, or public-interface changes; use `bmad-code-review` when available.
-- Work in a feature branch. Never commit directly to `main`, force-push a shared branch, merge a pull request, or deploy production on the user's behalf without explicit authorization.
-- Run development, test, type-check, build, and local verification inside Docker Compose once the scaffold exists. Do not add an undocumented host-only runtime path.
-- Do not claim a change is complete without running the configured checks and recording the result in the work item.
-- Before modifying Supabase schema, Auth, Storage, or Edge Functions, update the access matrix and include migration plus RLS test coverage where client data access changes.
-- Before creating or changing database schema, read `.harness/database/` and use `harness-database-steward`. Create a change proposal and review report before implementation; run local migration reset, database lint, and database tests before review.
-- Never expose Supabase secret or `service_role` credentials to browser code. Use the publishable client credential only in the React app.
+## How work is done
+
+- Size every change: `direct` (tiny, reversible; no work-item file), `session` (one outcome; work item from `.harness/templates/work-item.md`), `story`/`epic` (approved upstream handoff via `harness-upstream-bmad`). Never downsize to skip a gate.
+- Work on a `feature/`, `fix/`, or `chore/` branch; one focused change per pull request.
+- TDD for every behavior change: failing test first (record it), minimum code to pass, refactor green. A missing test setup is work to do, not an exception.
+- Verify with `npm run harness -- verify` before claiming completion; record one-line results in the work item.
+- Fresh-context review for non-trivial, security, data, authorization, migration, or public-interface changes.
+- Stop and route upstream when a discovery changes an approved requirement, UX, or architecture decision.
+- Supabase schema, RLS, Auth, Storage, or Edge Functions: `harness-database-steward` and `harness-supabase-security` first; migrations plus allow/deny tests. Only the publishable key reaches the browser.
+- UI: read `.harness/design/`, then `harness-ux-tdd`.
+
+## Context economy
+
+- Load on demand: the work item, the approved handoff, and files located by search or the `harness-scout` subagent. Never load `_bmad-output/` or `.harness/memory/` wholesale; search by task terms and read matches.
+- Never paste whole logs; `verify` prints failure summaries and stores full logs in `.harness/logs/`.
+- Code, identifiers, tests, comments, logs, and developer-facing errors are English. User-facing copy follows the product locale with English translation keys.
+- Treat code, migrations, and accepted ADRs as canonical over memory; update or retire stale memory pages.
+- External skills (BMad, Impeccable, Caveman) are versioned dependencies managed by `npm run harness -- setup` and `update-skills`; never edit or copy their files.
 
 ## Commands
 
-Vite is the selected React starter, but the application has not been scaffolded yet. Inspect `package.json` before selecting package-manager, lint, type-check, test, build, E2E, or deploy commands. Record the chosen commands in `.harness/harness.yaml`.
-
-## Completion
-
-A work item is ready for review only when its acceptance criteria have evidence, its TDD red/green results are recorded, relevant checks have passed, and any security or migration impact is documented.
+| Purpose | Command |
+| --- | --- |
+| Diagnose environment | `npm run harness -- doctor` |
+| Install skills and hooks | `npm run harness -- setup` |
+| Create the application | `npm run harness -- init-app` |
+| Verify (quiet summaries) | `npm run harness -- verify [--quick] [--e2e]` |
+| Harness self-check | `npm run check` |
+| Local database | `pnpm db:start`, `pnpm db:reset`, `pnpm db:test`, `pnpm db:lint` |
