@@ -65,12 +65,19 @@ database:
     data_dictionary: .harness/database/DATA_DICTIONARY.md
     change_proposals: .harness/database/changes
     review_reports: .harness/database/reviews
+    schema_guards: .harness/database/guards
+    change_guard: .harness/scripts/database-guard.mjs
   quality_gates:
+    - database change guard passes (immutable published migrations, DBA review, owner approval, documented tables, destructive-change approval)
     - local migration reset succeeds
     - database lint has no warnings
-    - pgTAP tests pass, including the public-schema RLS guard
-    - security and performance advisors reviewed when available
+    - pgTAP tests pass
+    - Harness schema guards pass (RLS, security_invoker views, policies, functions, auth.users exposure, purpose comments, personal-data classification, account deletion)
+    - Supabase security advisors report no warning or error
     - DBA review is approved or approved with recorded conditions
+  release_gates:
+    - destructive or rewriting migrations wait for a required reviewer on the production-destructive environment
+    - the deploy prints a migration dry-run and stores a schema-only dump before applying migrations
 upstream:
   method: BMad Method (essential skill profile)
   artifact_root: _bmad-output

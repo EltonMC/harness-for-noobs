@@ -26,6 +26,14 @@
 | **Supabase** | Serviço que fornece banco de dados, login e armazenamento de arquivos. |
 | **Migration** | Arquivo versionado que altera a estrutura do banco. É assim que o banco muda, nunca na mão. |
 | **RLS** | *Row Level Security*: regras no banco que definem quem vê e altera cada linha. Sem ela, qualquer pessoa pode ler tudo. |
+| **Tabela** | Uma "planilha" do banco: cada linha é um registro, cada coluna um tipo de informação. |
+| **View** | Consulta salva que parece uma tabela. Precisa de `security_invoker` para respeitar a RLS. |
+| **Policy (política)** | Uma regra de RLS: "quem pode ler, criar, mudar ou apagar estas linhas". |
+| **Migration destrutiva** | Migration que apaga ou reescreve dados existentes. Não tem desfazer; exige sua aprovação dupla. |
+| **Dado pessoal / sensível** | Pessoal: identifica alguém (nome, e-mail, telefone). Sensível: saúde, religião, biometria, origem racial, vida sexual, opinião política, dados de crianças. |
+| **LGPD** | Lei Geral de Proteção de Dados: regras sobre coletar, guardar e apagar dados pessoais no Brasil. |
+| **Ficha do dado** | Parte da proposta de banco escrita para você aprovar, sem código. |
+| **DBA** | Especialista em banco de dados. Aqui, o papel que o agente assume para revisar a mudança. |
 | **Chave publishable** | Chave do Supabase que pode ir para o navegador, porque respeita a RLS. |
 | **service_role / secret key** | Chave do Supabase que ignora a RLS. Nunca vai para o navegador. |
 | **Edge Function** | Pequeno código que roda no servidor do Supabase, onde segredos podem ser usados com segurança. |

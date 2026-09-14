@@ -80,8 +80,38 @@ jobs:
     name: Database gate
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      # Runs even without supabase/config.toml, so migrations can never skip the gate silently.
+      - name: Database change guard (published migrations, DBA review, owner approval, destructive SQL)
+        id: guard
+        env:
+          BASE_REF: ${{ github.base_ref || 'main' }}
+        run: |
+          set +e
+          node .harness/scripts/database-guard.mjs --base "origin/$BASE_REF" > database-guard.md
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat database-guard.md
+          cat database-guard.md >> "$GITHUB_STEP_SUMMARY"
+      - if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && steps.guard.outputs.has_migrations == 'true'
+        name: Comment the database report on the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node .harness/scripts/upsert-pr-comment.mjs --pr "$PR_NUMBER" --marker harness-database-guard --body-file database-guard.md
+      - name: Fail when the database change guard found problems
+        if: steps.guard.outputs.status != '0'
+        run: |
+          echo "::error::Database change guard failed. Read the report above (or the pull request comment) for what is missing."
+          exit 1
       - name: Detect local Supabase project
         id: db
         run: |
@@ -104,6 +134,12 @@ jobs:
       - if: steps.db.outputs.exists == 'true'
         name: Database tests (RLS and pgTAP)
         run: supabase test db
+      - if: steps.db.outputs.exists == 'true'
+        name: Harness database guardrails (RLS, views, policies, functions, personal data)
+        run: supabase test db .harness/database/guards
+      - if: steps.db.outputs.exists == 'true'
+        name: Supabase security advisors
+        run: supabase db advisors --local --type security --level warn --fail-on warn
 
   dependency-review:
     name: Dependency review
@@ -191,9 +227,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PREVIEW_URL: ${{ steps.upload.outputs.url }}
           BASE_REF: ${{ github.base_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           body=$(printf '🔎 **Prévia desta mudança:** %s\n\nAbra o link e siga o roteiro "Como testar" da descrição do PR antes de aprovar.' "$PREVIEW_URL")
           if [ -n "$(git diff --name-only "origin/$BASE_REF...HEAD" -- supabase/migrations)" ]; then
             body=$(printf '%s\n\n⚠️ **Este PR muda o banco de dados.** A prévia usa o banco de preview, que não recebe estas migrations. Teste as mudanças de banco localmente: `pnpm db:reset` e `pnpm dev`.' "$body")
           fi
-          gh pr comment "${{ github.event.pull_request.number }}" --edit-last --create-if-none --body "$body"
+          printf '%s\n' "$body" > preview-comment.md
+          node .harness/scripts/upsert-pr-comment.mjs --pr "$PR_NUMBER" --marker harness-preview --body-file preview-comment.md

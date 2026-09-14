@@ -6,14 +6,15 @@ Use como checklist antes de convidar pessoas reais. Peça ao agente para tratar 
 
 - [ ] `npm run harness -- github-protect --apply` rodou sem ✖ (main protegida, Dependabot). Em repositório privado no plano gratuito, secret scanning e proteção da main não existem: torne o repositório público, assine o GitHub Pro ou registre essa decisão em `project-context.md` sabendo que o scanner local e o CI continuam ativos.
 - [ ] Supabase de **produção** separado do de prévia.
-- [ ] Todas as tabelas com RLS e testes de permitir/negar (o CI já barra tabela sem RLS).
+- [ ] Todas as tabelas com RLS e testes de permitir/negar (o CI já barra tabela sem RLS, view insegura e coluna sem classificação de dado pessoal).
+- [ ] `npm run harness -- github-protect --apply` criou o ambiente `production-destructive` (migrations que apagam dados esperam sua aprovação).
 - [ ] Autenticação: confirmação de e-mail ligada, URLs de redirecionamento só do seu domínio, proteção contra senhas vazadas ativa.
 - [ ] Limites contra abuso: rate limit do Auth revisado e CAPTCHA no cadastro/login se o formulário for público.
 - [ ] Nenhuma chave `service_role`/`sb_secret_` fora das Edge Functions.
 
 ## Pessoas e LGPD
 
-- [ ] Você sabe quais dados pessoais coleta e por quê (anote em `.harness/design/PRODUCT.md`).
+- [ ] Você sabe quais dados pessoais coleta e por quê: confira as colunas `pii:personal` e `pii:sensitive` no dicionário de dados (`.harness/database/DATA_DICTIONARY.md`) e resuma em `.harness/design/PRODUCT.md`.
 - [ ] Política de privacidade e termos de uso publicados.
 - [ ] Existe um jeito de a pessoa pedir exclusão dos próprios dados.
 - [ ] Região do Supabase escolhida conscientemente (dados de brasileiros podem ficar fora do país, mas isso precisa estar na política).

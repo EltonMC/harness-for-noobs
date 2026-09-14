@@ -20,7 +20,7 @@ Hooks, Git hooks, and CI block: commits or pushes to an existing `main`, force p
 - Verify with `npm run harness -- verify` before claiming completion; record one-line results in the work item.
 - Fresh-context review for non-trivial, security, data, authorization, migration, or public-interface changes.
 - Stop and route upstream when a discovery changes an approved requirement, UX, or architecture decision.
-- Supabase schema, RLS, Auth, Storage, or Edge Functions: `harness-database-steward` and `harness-supabase-security` first; migrations plus allow/deny tests. Only the publishable key reaches the browser.
+- Supabase schema, RLS, Auth, Storage, or Edge Functions: `harness-database-steward` and `harness-supabase-security` first; migrations plus allow/deny tests. The owner approves the proposal's plain-language "Ficha do dado" before any migration; never fill the approval lines yourself. Only the publishable key reaches the browser.
 - UI: read `.harness/design/`, then `harness-ux-tdd`.
 
 ## Context economy
@@ -41,3 +41,4 @@ Hooks, Git hooks, and CI block: commits or pushes to an existing `main`, force p
 | Verify (quiet summaries) | `npm run harness -- verify [--quick] [--e2e]` |
 | Harness self-check | `npm run check` |
 | Local database | `pnpm db:start`, `pnpm db:reset`, `pnpm db:test`, `pnpm db:lint` |
+| Database change guard | `node .harness/scripts/database-guard.mjs` (also inside `verify` and CI) |

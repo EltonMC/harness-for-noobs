@@ -14,7 +14,7 @@ export function firstRulesetId(output) {
   return output.trim().split(/\s+/)[0] ?? '';
 }
 
-export function buildProtectionPlan({ repository }) {
+export function buildProtectionPlan({ repository, reviewerId }) {
   const base = `repos/${repository}`;
   return [
     {
@@ -69,6 +69,18 @@ export function buildProtectionPlan({ repository }) {
       optional: false,
       body: { deployment_branch_policy: { protected_branches: true, custom_branch_policies: false } },
     },
+    ...(reviewerId ? [{
+      id: 'destructive-database-environment',
+      description: 'Criar o ambiente "production-destructive": migration que apaga ou reescreve dados espera sua aprovação no GitHub',
+      method: 'PUT',
+      path: `${base}/environments/production-destructive`,
+      optional: true,
+      body: {
+        reviewers: [{ type: 'User', id: reviewerId }],
+        prevent_self_review: false,
+        deployment_branch_policy: { protected_branches: true, custom_branch_policies: false },
+      },
+    }] : []),
     {
       id: 'actions-pull-requests',
       description: 'Permitir que o workflow de atualização do Harness abra pull requests (permissões padrão continuam só leitura)',
@@ -139,7 +151,9 @@ export async function runGithubProtect({ apply = false, print = console.log } = 
   const view = await gh(['repo', 'view', '--json', 'nameWithOwner,visibility']);
   if (view.code !== 0) throw new Error('Este projeto ainda não está no GitHub. Crie com: gh repo create --private --source . --push');
   const { nameWithOwner, visibility } = JSON.parse(view.stdout);
-  const plan = buildProtectionPlan({ repository: nameWithOwner });
+  const user = await gh(['api', 'user', '--jq', '.id']);
+  const reviewerId = user.code === 0 ? Number(user.stdout.trim()) || undefined : undefined;
+  const plan = buildProtectionPlan({ repository: nameWithOwner, reviewerId });
 
   print(`${apply ? 'Aplicando' : 'Plano (nada será alterado)'} — ${nameWithOwner} (${visibility.toLowerCase()})`);
   if (!apply) {

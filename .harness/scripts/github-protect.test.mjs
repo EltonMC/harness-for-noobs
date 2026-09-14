@@ -49,3 +49,13 @@ test('review: uses the first ruleset id when duplicates exist', () => {
   assert.equal(firstRulesetId('123\n456\n'), '123');
   assert.equal(firstRulesetId(''), '');
 });
+
+test('database: creates a production-destructive environment that waits for the owner before destructive migrations', () => {
+  const plan = buildProtectionPlan({ repository: 'owner/app', reviewerId: 42 });
+  const step = plan.find((candidate) => candidate.id === 'destructive-database-environment');
+  assert.equal(step.path, 'repos/owner/app/environments/production-destructive');
+  assert.deepEqual(step.body.reviewers, [{ type: 'User', id: 42 }]);
+  assert.equal(step.body.prevent_self_review, false, 'a solo owner approves their own destructive change');
+  assert.equal(step.optional, true);
+  assert.ok(!buildProtectionPlan({ repository: 'owner/app' }).some((candidate) => candidate.id === 'destructive-database-environment'));
+});

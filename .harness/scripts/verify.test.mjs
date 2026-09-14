@@ -39,7 +39,7 @@ test('falls back to the last lines when no error marker exists', () => {
 
 test('review: full verification plans database gates when requested', () => {
   const withDatabase = { ...scripts, 'db:lint': 'supabase db lint', 'db:test': 'supabase test db' };
-  assert.deepEqual(planVerification(withDatabase, { database: true }).map((step) => step.script), ['lint', 'typecheck', 'test', 'build', 'bundle-secrets', 'db:lint', 'db:test']);
+  assert.deepEqual(planVerification(withDatabase, { database: true }).map((step) => step.script), ['lint', 'typecheck', 'test', 'build', 'bundle-secrets', 'db:guard', 'db:lint', 'db:test', 'db:guards', 'db:advisors']);
   assert.deepEqual(planVerification(withDatabase, { quick: true }).map((step) => step.script), ['typecheck', 'test']);
 });
 
@@ -72,11 +72,32 @@ test('review: a failed build skips the bundle scan and stopped database gates ar
     await mkdir(join(root, 'supabase'));
     await writeFile(join(root, 'supabase', 'config.toml'), '');
     const lines = [];
-    const result = await runVerification({ root, print: (line) => lines.push(line), isDatabaseRunning: async () => false });
+    const result = await runVerification({ root, print: (line) => lines.push(line), isDatabaseRunning: async () => false, guardDatabase: async () => ({ ok: true, touchesDatabase: false, migrations: [], problems: [] }) });
     assert.deepEqual(result.failures, ['build']);
-    assert.deepEqual(result.skipped, ['bundle-secrets', 'db:lint', 'db:test']);
+    assert.deepEqual(result.skipped, ['bundle-secrets', 'db:lint', 'db:test', 'db:guards', 'db:advisors']);
     assert.ok(lines.some((line) => /pnpm db:start/.test(line)));
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test('database: the guard runs in full verification and a stopped database fails work that changes supabase/', async () => {
+  const root = await projectWith({ 'db:lint': pass, 'db:test': pass });
+  try {
+    await mkdir(join(root, 'supabase'));
+    await writeFile(join(root, 'supabase', 'config.toml'), '');
+    const lines = [];
+    const guardDatabase = async () => ({ ok: false, touchesDatabase: true, migrations: [], problems: ['A migration `x.sql` não tem revisão do DBA.'] });
+    const result = await runVerification({ root, print: (line) => lines.push(line), isDatabaseRunning: async () => false, guardDatabase });
+    assert.deepEqual(result.failures, ['db:guard', 'database-offline']);
+    assert.ok(lines.some((line) => /revisão do DBA/.test(line)));
+    assert.ok(lines.some((line) => /muda o banco/.test(line)));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('database: quick verification never runs the documentation guard', () => {
+  const withDatabase = { typecheck: 'tsc', test: 'vitest', 'db:test': 'supabase test db' };
+  assert.ok(!planVerification(withDatabase, { quick: true, database: true }).some((step) => step.script === 'db:guard'));
 });

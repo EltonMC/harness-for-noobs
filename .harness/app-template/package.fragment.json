@@ -19,6 +19,8 @@
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
     "db:lint": "supabase db lint --level warning --fail-on warning",
+    "db:guard": "node .harness/scripts/database-guard.mjs",
+    "db:security": "supabase test db .harness/database/guards && supabase db advisors --local --type security --level warn --fail-on warn",
     "db:types": "supabase gen types typescript --local > src/lib/database.types.ts",
     "verify": "node .harness/scripts/harness-cli.mjs verify"
   },
