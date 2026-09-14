@@ -1,31 +1,31 @@
-# Local development with Docker Compose
+# Local development
 
-## Goal
+See `docs/decisions/0009-host-toolchain-docker-services.md`.
 
-Give every developer and agent the same Linux-based runtime, dependency versions, tests, and build behavior without requiring a host Node installation.
+## Runtime boundary
 
-## Required scaffold artifacts
+- The application, tests, and build run on the host with the Node version in `.nvmrc` and the pnpm version pinned in `package.json#packageManager` (pnpm 10+ switches to it automatically).
+- Docker runs services only: the local Supabase stack started by the Supabase CLI.
+- CI is the clean room: a fresh runner installs from the lockfile and runs every gate. A change that passes only on one laptop is not done.
 
-- `Dockerfile` with `development`, `test`, and `build` stages;
-- `compose.yaml` for local development, with source synchronization and named dependency volumes where appropriate;
-- `.dockerignore` that excludes dependencies, build output, secrets, and VCS metadata not needed in an image;
-- the package-manager lockfile;
-- documented Compose commands in `package.json`, `README.md`, and `.harness/harness.yaml`.
+## First run after `init-app`
+
+Agents never read or write `.env` files. Give the owner these steps:
+
+1. `cp .env.example .env.local`
+2. Start Docker Desktop, then `pnpm db:start`; paste the printed publishable key into `.env.local`.
+3. `pnpm exec playwright install chromium`
+4. `npm run harness -- verify` (database gates are reported as skipped while the local stack is stopped).
 
 ## Everyday flow
 
-1. Start Docker Desktop.
-2. Run the documented Compose start command; use the Vite development container for hot reload.
-3. Run unit, integration, lint, type, and build checks through Compose, not a host-installed Node runtime.
-4. Use the local Supabase stack for integration paths. Treat it as disposable and seed it through versioned scripts or migrations.
-5. Stop the stack when finished. Reset local data only with an explicit command that names the target.
-
-## Production-like verification
-
-Before a pull request is ready, CI must build the release target from the lockfile, run the configured checks in a clean container, and validate the generated static bundle. The deployment job consumes that verified output; it does not rebuild an unreviewed working tree.
+1. `pnpm db:start` (once per session) and `pnpm dev`.
+2. Change code test-first; the agent hooks lint edited files and run the quick gate before the agent finishes.
+3. `npm run harness -- verify` before a pull request (`--e2e` for flows). With the local stack running it also runs `db:lint` and `db:test`.
+4. `pnpm db:stop` when finished. `pnpm db:reset` rebuilds local data from migrations and seeds (local data is lost).
 
 ## Boundaries
 
-- Do not place production secrets in Compose files, bind mounts, images, or committed `.env` files.
-- Do not use Docker Compose as the Cloudflare production runtime. Cloudflare receives the built static assets.
-- Do not claim Docker guarantees production behavior. It controls runtime and dependency drift; tests, build checks, staged rollout, monitoring, and rollback address the remaining risks.
+- Never place production secrets in `.env.local`, package scripts, or committed files. Browser variables (`VITE_*`) are public.
+- Keep install-time safety on: `minimumReleaseAge` and `allowBuilds` in `pnpm-workspace.yaml`.
+- Cloudflare receives only the built static assets from CI; nothing deploys from a laptop.

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — 2026-09-13
+Accepted — 2026-09-13. Amended 2026-09-13: installs only the selected agents' directories, verifies that every skill is loadable, installs Impeccable from its host-specific folders, and uses the BMad `essential` profile (see `.harness/workflows/skill-source-maintenance.md`). References below to `.cursor`, `.github`, and `.devin` skill targets are historical; `clean` removes those legacy copies.
 
 ## Context
 

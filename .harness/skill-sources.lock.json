@@ -1,10 +1,11 @@
 {
-  "version": 2,
+  "version": 3,
   "policy": {
     "cadence": "weekly check",
-    "updateBoundary": "A source update may only be proposed in a draft pull request and requires human approval before merge.",
+    "updateBoundary": "A source update may only be proposed in a pull request and requires human approval before merge.",
     "stableChannelsOnly": true,
-    "installRule": "Bootstrap resolves only the committed executable versions and source revisions. Discovering a newer revision is read-only until an explicit update is prepared and reviewed."
+    "installRule": "Bootstrap resolves only the committed executable versions and source revisions. Discovering a newer revision is read-only until an explicit update is prepared and reviewed.",
+    "targetRule": "Only the skill directories of the agents selected at setup are installed and verified. Every installed skill must be loadable: SKILL.md frontmatter names the skill and describes it."
   },
   "sources": [
     {
@@ -13,22 +14,35 @@
       "package": "bmad-method",
       "installerVersion": "6.12.0",
       "installedVersion": "6.12.0",
+      "modules": [
+        "bmm"
+      ],
       "skillManifestDigest": "6d414dcda3fbfc4c8716ab309dbfa5493c0ce0fee8566cc822918e5c874a2544",
-      "adapterDigests": {
-        ".agents/skills": "fc29f7f2261455aa167fd3272ff7f6e66ba4efd080fb6b5d43932202ef6263e8",
-        ".claude/skills": "fc29f7f2261455aa167fd3272ff7f6e66ba4efd080fb6b5d43932202ef6263e8",
-        ".cline/skills": "fc29f7f2261455aa167fd3272ff7f6e66ba4efd080fb6b5d43932202ef6263e8"
+      "skillProfile": {
+        "name": "essential",
+        "rationale": "Every installed skill adds its description to each agent session. Persona, party, retrospective, autonomous-loop, and AGENTS.md-management skills are omitted; the Harness owns AGENTS.md.",
+        "skills": [
+          "bmad-help",
+          "bmad-brainstorming",
+          "bmad-product-brief",
+          "bmad-prd",
+          "bmad-ux",
+          "bmad-architecture",
+          "bmad-spec",
+          "bmad-create-epics-and-stories",
+          "bmad-sprint-planning",
+          "bmad-build",
+          "bmad-code-review",
+          "bmad-review",
+          "bmad-correct-course",
+          "bmad-walkthrough"
+        ]
       },
-      "targetDigests": {
-        ".agents/skills/bmad-help/SKILL.md": "72573fbbd205cab6119015b7a20951055c7f1f583162674ebed7a68368dc889c",
-        ".claude/skills/bmad-help/SKILL.md": "72573fbbd205cab6119015b7a20951055c7f1f583162674ebed7a68368dc889c",
-        ".cline/skills/bmad-help/SKILL.md": "72573fbbd205cab6119015b7a20951055c7f1f583162674ebed7a68368dc889c"
-      },
-      "modules": ["bmm"],
-      "targets": [
-        ".agents/skills/bmad-help/SKILL.md",
-        ".claude/skills/bmad-help/SKILL.md",
-        ".cline/skills/bmad-help/SKILL.md"
+      "adapterDigest": "507c3dcba28b4460e295bd175e2da243fdd577471e65b2f3b894272996023a35",
+      "adapterTargets": [
+        ".agents/skills",
+        ".claude/skills",
+        ".cline/skills"
       ]
     },
     {
@@ -36,17 +50,26 @@
       "manager": "git-source",
       "source": "pbakaus/impeccable",
       "sourceRevision": "cb56ed6c19a07329a9fa0cd4e657bee040156593",
-      "contentDigest": "2b45933d05dfb0b0351626f22bde4d10373c64e196c1e66b424a52cdfe6c0299",
-      "sourceDirectory": ".agents/skills/impeccable",
-      "sourceSubdirectory": ".",
+      "sourceSubdirectory": ".agents/skills/impeccable",
+      "contentDigest": "57d4e8abdb9e8d2627445a050d539445a387fe49719acced8dc8d886f73bdcfd",
+      "sourceDirectory": ".harness/.skill-cache/impeccable",
       "skill": "impeccable",
       "targets": [
         ".agents/skills",
-        ".claude/skills",
-        ".cline/skills",
-        ".cursor/skills",
-        ".github/skills",
-        ".devin/skills"
+        ".cline/skills"
+      ]
+    },
+    {
+      "id": "impeccable-claude",
+      "manager": "git-source",
+      "source": "pbakaus/impeccable",
+      "sourceRevision": "cb56ed6c19a07329a9fa0cd4e657bee040156593",
+      "sourceSubdirectory": ".claude/skills/impeccable",
+      "contentDigest": "822916a8a941edc8f44dd15ee501292fe61c70df5babff501323ac4d50071936",
+      "sourceDirectory": ".harness/.skill-cache/impeccable-claude",
+      "skill": "impeccable",
+      "targets": [
+        ".claude/skills"
       ]
     },
     {
@@ -54,17 +77,14 @@
       "manager": "git-source",
       "source": "JuliusBrussee/caveman",
       "sourceRevision": "15581d14007fd01fb3f132016741962f34936ca2",
-      "contentDigest": "1b51863bcb74bade805757e8b13e5b9531c1410e41f787cffc6e17a78f42d2ca",
-      "sourceDirectory": ".agents/skills/caveman",
       "sourceSubdirectory": "skills/caveman",
+      "contentDigest": "1b51863bcb74bade805757e8b13e5b9531c1410e41f787cffc6e17a78f42d2ca",
+      "sourceDirectory": ".harness/.skill-cache/caveman",
       "skill": "caveman",
       "targets": [
         ".agents/skills",
         ".claude/skills",
-        ".cline/skills",
-        ".cursor/skills",
-        ".github/skills",
-        ".devin/skills"
+        ".cline/skills"
       ]
     }
   ]

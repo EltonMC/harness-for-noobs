@@ -1,0 +1,152 @@
+name: App deploy
+
+# Harness-managed. Production deploys run only for the merged main commit:
+# verification first, then database migrations, then the frontend.
+# Each job skips with a notice until the application and the secrets in
+# docs/guia/02-contas-e-segredos.md exist.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Production verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      application: ${{ steps.app.outputs.exists }}
+    env:
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Detect application
+        id: app
+        run: |
+          if node -e "process.exit(require('./package.json').dependencies?.react ? 0 : 1)" 2>/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No application yet; deployment skipped."
+          fi
+      - if: steps.app.outputs.exists == 'true'
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - if: steps.app.outputs.exists == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - if: steps.app.outputs.exists == 'true'
+        run: pnpm install --frozen-lockfile
+      - if: steps.app.outputs.exists == 'true'
+        name: Verify the merged commit before touching production
+        run: pnpm lint && pnpm typecheck && pnpm test && pnpm build
+      - if: steps.app.outputs.exists == 'true' && hashFiles('supabase/config.toml') != ''
+        uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
+        with:
+          version: 2.117.0
+      - if: steps.app.outputs.exists == 'true' && hashFiles('supabase/config.toml') != ''
+        name: Verify migrations locally before applying them to production
+        run: |
+          supabase db start
+          supabase db lint --level warning --fail-on warning
+          supabase test db
+
+  database:
+    name: Production database migrations
+    needs: verify
+    if: needs.verify.outputs.application == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+    steps:
+      - name: Check Supabase configuration
+        id: config
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_DB_PASSWORD" ] || [ -z "$SUPABASE_PROJECT_REF" ]; then
+            echo "::notice::Database deploy skipped: Supabase production secrets are not configured."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.config.outputs.enabled == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: steps.config.outputs.enabled == 'true'
+        uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
+        with:
+          version: 2.117.0
+      - if: steps.config.outputs.enabled == 'true'
+        name: Apply pending migrations
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          supabase db push
+
+  frontend:
+    name: Production frontend
+    needs: [verify, database]
+    if: needs.verify.outputs.application == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PRODUCTION_SUPABASE_URL: ${{ vars.PRODUCTION_SUPABASE_URL }}
+      PRODUCTION_SUPABASE_PUBLISHABLE_KEY: ${{ vars.PRODUCTION_SUPABASE_PUBLISHABLE_KEY }}
+      PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+    steps:
+      - name: Check Cloudflare and production configuration
+        id: config
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::Production deploy skipped: Cloudflare secrets are not configured."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$PRODUCTION_SUPABASE_URL" ] || [ -z "$PRODUCTION_SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::PRODUCTION_SUPABASE_URL and PRODUCTION_SUPABASE_PUBLISHABLE_KEY must be set; a build without them breaks at runtime."
+            exit 1
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.config.outputs.enabled == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: steps.config.outputs.enabled == 'true'
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - if: steps.config.outputs.enabled == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - if: steps.config.outputs.enabled == 'true'
+        run: pnpm install --frozen-lockfile
+      - if: steps.config.outputs.enabled == 'true'
+        name: Build with production configuration
+        run: pnpm build
+        env:
+          VITE_SUPABASE_URL: ${{ vars.PRODUCTION_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.PRODUCTION_SUPABASE_PUBLISHABLE_KEY }}
+      - if: steps.config.outputs.enabled == 'true'
+        run: node .harness/scripts/secret-scan.mjs --dir dist
+      - if: steps.config.outputs.enabled == 'true'
+        name: Deploy
+        run: pnpm exec wrangler deploy --message "main ${{ github.sha }}"
+      - if: steps.config.outputs.enabled == 'true' && env.PRODUCTION_URL != ''
+        name: Smoke test the public URL
+        run: |
+          for _ in 1 2 3 4 5; do
+            if curl -fsS --max-time 10 "$PRODUCTION_URL" > /dev/null; then exit 0; fi
+            sleep 10
+          done
+          echo "::error::Production URL did not respond. Roll back in Cloudflare (Workers > Deployments). Database migrations already ran: fix forward with a new migration PR if needed."
+          exit 1

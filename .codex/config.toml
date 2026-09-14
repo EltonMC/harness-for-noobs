@@ -1,0 +1,4 @@
+# Project defaults for Codex. Codex does not run the Harness agent hooks, so the
+# Git hooks (`npm run harness -- setup`) and CI remain the enforced guardrails.
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"

@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(npm run harness:*)",
+      "Bash(npm test)",
+      "Bash(npm run check)",
+      "Bash(pnpm verify:*)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm build)",
+      "Bash(pnpm db:test)",
+      "Bash(pnpm db:lint)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git switch -c:*)",
+      "Bash(git add:*)"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(gh pr create:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm install:*)",
+      "Bash(npm install:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./.env.development)",
+      "Read(./.env.development.local)",
+      "Read(./.env.production)",
+      "Read(./.env.production.local)",
+      "Read(./.env.test.local)",
+      "Read(./.dev.vars)",
+      "Read(./supabase/.env)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(supabase db push:*)",
+      "Bash(supabase link:*)",
+      "Bash(wrangler deploy:*)",
+      "Bash(gh pr merge:*)",
+      "Read(**/.env)",
+      "Read(**/.env.local)",
+      "Read(**/.env.*.local)",
+      "Read(**/.env.production)",
+      "Read(**/.env.development)",
+      "Read(**/.env.staging)",
+      "Read(**/.env.test)",
+      "Read(**/.envrc)",
+      "Read(**/.dev.vars)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|Read|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.harness/hooks/claude-pre-tool.mjs\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.harness/hooks/claude-post-edit.mjs\"",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.harness/hooks/claude-stop-verify.mjs\"",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  }
+}

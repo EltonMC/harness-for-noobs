@@ -1,18 +1,34 @@
 # Token-Efficient Execution
 
-Use this workflow for long, agent-driven work or when cost and context quality matter.
+Use for long, agent-driven work or when cost and context quality matter.
 
-1. Start from one work item. Search `.harness/memory/` for its domain terms, then load only matching pages, linked context, affected files, and current evidence.
-2. For upstream-backed work, load the approved handoff rather than `_bmad-output/`. Use its source map only for an unresolved decision, conflict, or high-risk boundary; retrieve the smallest relevant section and retain only a concise conclusion with its path and heading.
-3. Use a scout only to identify files, symbols, and commands. Its handoff is paths plus concise findings, never copied files or raw logs.
-4. Give the implementer the work item, focused context, and scout handoff. Do not replay the exploration conversation.
-5. Give a reviewer the diff, acceptance criteria, changed tests, and risks. Do not send the entire implementation transcript.
-6. Persist durable decisions in the project context or an ADR; discard transient exploration after its conclusion is captured.
-7. Record provider-reported input, output, reasoning, and cached tokens when the host exposes them. Compare completed work items, not isolated response length.
-8. At a tool or session boundary, replace `memory/handoffs/CURRENT.md` with a concise, evidence-linked continuation note. Capture only durable discoveries in the typed memory folders.
+## Principles
 
-Do not add a skill simply because it promises token savings. Add it only when it eliminates repeated discovery, context, or work in this repository.
+1. **Deterministic first.** Anything a script can do is not agent work: `init-app` scaffolds, `verify` checks, `doctor` diagnoses, `github-protect` configures. They cost no reasoning tokens.
+2. **Locate, then read.** Use the `harness-scout` subagent (small model) or targeted search to name files; read excerpts, not trees. Never load `_bmad-output/` or `.harness/memory/` wholesale.
+3. **Quiet output.** `verify` prints failure summaries and keeps full logs in `.harness/logs/`. CI reporters are compact (`dot`, `line`). Read a log only around the reported error.
+4. **Small always-on context.** `AGENTS.md` holds only rules no mechanism enforces. Every installed skill adds its description to each session, so BMad uses the `essential` profile.
+5. **Separate contexts.** Exploration, implementation, and review each get only their inputs: the reviewer receives the diff, acceptance criteria, and risks.
+6. **Stable prefix.** Keep `AGENTS.md` and settings stable during a session so prompt caching works; put volatile state in the work item or `handoffs/CURRENT.md`, not in always-loaded files.
+7. **Fresh sessions.** Start a new session between unrelated tasks after writing a handoff when needed.
 
-## Optional terminal-output filtering
+## Communication
 
-Tools such as RTK may reduce the terminal output an agent reads, but that does not directly measure total model-token or billing savings. Do not install one by default. Pilot it only in a dedicated work item with an unchanged task set, preserved exit codes and access to full logs, and provider-reported token measurements when the host exposes them. Keep it only when completed-task evidence shows a benefit without hiding failures.
+Caveman compression is for agent-to-agent handoffs and internal notes. The owner always gets complete, plain sentences: misunderstanding costs more tokens than it saves.
+
+## Measurement
+
+Record provider-reported input, output, and cached tokens for completed work items when the host exposes them (Claude Code `/cost`, `/context`, or `npx ccusage`; Codex `/status`). Compare equivalent completed tasks, not response length.
+
+## Optional: terminal-output compression (RTK)
+
+RTK rewrites common shell commands through a hook and compresses their output. It is not installed by default because it changes what the agent sees. Pilot it in a dedicated work item:
+
+1. Pick three recent, representative tasks and record their token usage.
+2. Install RTK (`brew install rtk`) and enable its hook for the chosen agent following the RTK documentation.
+3. Repeat equivalent tasks; confirm exit codes, failing test names, and file paths remain visible.
+4. Keep it only if completed-task tokens drop without hidden failures. Record the result as an ADR.
+
+## Optional: semantic code navigation
+
+For a large codebase, a symbol-level tool (for example Serena via MCP, or the agent's LSP integration) can replace broad file reads. Small projects rarely benefit; evaluate with the same measurement procedure before adopting.

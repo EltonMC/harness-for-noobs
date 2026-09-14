@@ -1,53 +1,47 @@
 # <id>: <short outcome>
 
+<!-- Fill only what applies. Delete sections marked "if applicable" when they do not. Keep evidence to one line per item; full logs stay in .harness/logs/. -->
+
 ## Outcome
 
-Describe the user-visible result.
+What the user can do when this is done, in one or two sentences.
 
-## Delivery gate
+## Gate
 
-- Change size: direct / session / story / epic
-- Upstream source or direct-intent rationale:
-- Intent gaps: none / list decisions the owner must make
-- Irreversible actions: none / list and authorization needed
-- Footprint: modules, public interfaces, data, authorization, operations, and deployment affected
-- Readiness verdict: PASS / CONCERNS / FAIL
-- Concerns accepted by owner or condition to clear:
+- Size: session / story / epic — source: <approved handoff path or direct request>
+- Intent gaps: none / decisions the owner must make
+- Irreversible actions: none / what needs explicit approval
+- Footprint: modules, interfaces, data, authorization, deployment touched
+- Readiness: PASS / CONCERNS (accepted condition: …) / FAIL
 
 ## Acceptance criteria
 
-- [ ] Criterion with an observable result.
+- [ ] Observable result.
 
 ## Scope
 
-- Affected areas:
+- In scope:
 - Explicit non-goals:
-- Dependencies or decisions:
-- Code-language convention: English for technical code and developer-facing text; product locale for user-facing copy
-- Memory consulted:
-- Memory captured or updated:
 
-## Data and authorization impact
+## Data and authorization (if applicable)
 
-- Tables, Storage, Auth, RPC, or Edge Functions affected: none / list
-- Access-matrix update: not needed / path
-- Migration and RLS tests: not needed / path
+- Tables, RLS, Storage, Auth, RPC, Edge Functions:
+- Access matrix and DBA review:
+- Allow/deny tests:
 
-## UX contract
+## UX contract (if applicable)
 
-- User job and primary action: not applicable / describe
-- States: loading, empty, error, success, disabled: not applicable / describe
-- Keyboard and assistive-technology behavior: not applicable / describe
-- Responsive or visual-regression risk: not applicable / describe
+- User job and primary action:
+- Loading, empty, error, success, disabled states:
+- Keyboard and screen-reader behavior:
 
-## Implementation evidence
+## Evidence
 
 - Files changed:
-- TDD red evidence: test command and expected failure
-- TDD green evidence: focused test command and result
-- TDD refactor evidence: relevant suite command and result
-- Checks run:
-- Review findings and disposition:
+- Red: `<command>` → <expected failure, one line>
+- Green: `<command>` → <result>
+- Verify: `npm run harness -- verify` → <Tudo verde / failures fixed>
+- Review: <reviewer> → <findings and disposition> / not required because …
+- Course correction: not needed / upstream artifact updated and readiness rerun
 - Remaining risks:
-- Independent-review evidence or proportional exception:
-- Course-correction record: not needed / upstream artifact and revised readiness result
+- Memory consulted / captured:

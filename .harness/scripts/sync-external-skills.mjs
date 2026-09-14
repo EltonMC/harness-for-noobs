@@ -1,7 +1,8 @@
-import { cp, mkdir, readFile, rename, rm } from 'node:fs/promises';
+import { cp, mkdir, rename, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { repositoryRoot } from './skill-source-utils.mjs';
+import { selectedSkillDirectories } from './agent-hosts.mjs';
+import { readSkillSourceLock, repositoryRoot } from './skill-source-utils.mjs';
 
 async function replaceDirectory(source, destination) {
   const candidate = `${destination}.harness-next`;
@@ -26,23 +27,23 @@ async function replaceDirectory(source, destination) {
   await rm(previous, { recursive: true, force: true });
 }
 
-export async function syncExternalSkills({ root = repositoryRoot } = {}) {
-  const lock = JSON.parse(await readFile(join(root, '.harness', 'skill-sources.lock.json'), 'utf8'));
-  const managedSources = lock.sources.filter((source) => source.manager === 'git-source');
-  for (const source of managedSources) {
-    const sourcePath = join(root, source.sourceDirectory);
-    for (const target of source.targets) {
-      const targetPath = join(root, target, source.skill);
-      if (targetPath === sourcePath) continue;
-      await replaceDirectory(sourcePath, targetPath);
+export async function syncExternalSkills({ root = repositoryRoot, lock: providedLock, skillDirectories } = {}) {
+  const lock = providedLock ?? await readSkillSourceLock(root);
+  const directories = skillDirectories ?? await selectedSkillDirectories(root);
+  const synchronized = [];
+  for (const source of lock.sources.filter((entry) => entry.manager === 'git-source')) {
+    const targets = source.targets.filter((target) => directories.includes(target));
+    for (const target of targets) {
+      await replaceDirectory(join(root, source.sourceDirectory), join(root, target, source.skill));
     }
+    if (targets.length > 0) synchronized.push(source.id);
   }
-  return managedSources.map((source) => source.id);
+  return synchronized;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   syncExternalSkills()
-    .then((skills) => console.log(`Synchronized ${skills.join(', ')} to portable adapters`))
+    .then((skills) => console.log(`Synchronized ${skills.join(', ')} to the selected agent directories`))
     .catch((error) => {
       console.error(error.message);
       process.exitCode = 1;

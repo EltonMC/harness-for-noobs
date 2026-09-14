@@ -1,0 +1,94 @@
+# Copier template definition (docs/decisions/0011-copier-distribution.md).
+# Create a project:  uvx copier@9.18.2 copy --vcs-ref <tag> gh:EltonMC/harness-for-noobs meu-app
+# Update a project:  the weekly "Harness update" workflow, or: uvx copier@9.18.2 update --defaults --conflict inline
+
+_min_copier_version: "9.4.0"
+_answers_file: .copier-answers.yml
+_templates_suffix: .jinja
+
+project_name:
+  type: str
+  help: Nome do produto (aparece no título da aplicação)
+  default: Meu App
+  validator: "{% if not project_name.strip() %}Informe um nome.{% endif %}"
+
+owner_locale:
+  type: str
+  help: Em que idioma você quer conversar com os agentes e ler os resumos dos pull requests?
+  default: pt-BR
+  choices:
+    Português (Brasil): pt-BR
+    English (US): en-US
+    Español: es-ES
+
+product_locale:
+  type: str
+  help: Idioma da interface que o usuário final vai ver
+  default: "{{ owner_locale }}"
+  choices:
+    Português (Brasil): pt-BR
+    English (US): en-US
+    Español: es-ES
+
+agents:
+  type: str
+  multiselect: true
+  help: Quais agentes de IA você vai usar? (espaço marca, Enter confirma)
+  default: [claude-code]
+  choices:
+    Claude Code: claude-code
+    Codex: codex
+    Cursor: cursor
+    GitHub Copilot: github-copilot
+    Cline: cline
+
+# Harness development history, maintainer-only automation, and local, generated,
+# or third-party installs never reach a generated project.
+_exclude:
+  - copier.yml
+  - .git
+  - .github/README.md
+  - LICENSE
+  - .github/workflows/skill-source-maintenance.yml
+  - .github/workflows/harness-template-smoke.yml
+  - node_modules
+  - _bmad
+  - _bmad-output
+  - .agents
+  - .cline
+  - .cursor
+  - .devin
+  - .claude/skills
+  - .claude/worktrees
+  - .claude/settings.local.json
+  - .harness/.skill-cache
+  - .harness/.local-state.json
+  - .harness/.managed-adapters.json
+  - .harness/logs
+  - .harness/evidence/*.md
+  - .harness/work-items/[0-9][0-9][0-9][0-9]-*
+  - .harness/upstream/approved/[0-9][0-9][0-9][0-9]-*
+  - .harness/memory/gotchas/app-template-*
+  - "*.rej"
+  - "*.orig"
+
+# Product-owned files: created once, never overwritten by a Harness update.
+# Everything else in the template is Harness-owned and updated with a 3-way merge.
+_skip_if_exists:
+  - README.md
+  - package.json
+  - .harness/project.yaml
+  - .harness/context/project-context.md
+  - .harness/context/access-matrix.md
+  - .harness/design/**
+  - .harness/database/DATA_DICTIONARY.md
+  - .harness/memory/handoffs/CURRENT.md
+
+_message_after_copy: |
+  Projeto "{{ project_name }}" criado. Próximos passos:
+
+    cd {{ _copier_conf.dst_path }}
+    git init -b main && git add -A && git commit -m "chore: create project from Harness"
+    npm run harness -- setup
+
+  Guia completo: docs/guia/01-instalacao.md

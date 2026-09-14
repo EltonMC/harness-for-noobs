@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — 2026-09-13
+Accepted — 2026-09-13. Superseded in part by ADR 0009: the "Local and CI execution" section and every mention of containerized CI checks or container configuration validation (CI now installs from the lockfile on a fresh runner). Per-PR previews now exist (`app-ci.yml`), and production verification runs before migrations (`app-deploy.yml`). Guardrail enforcement is extended by ADR 0012.
 
 ## Context
 

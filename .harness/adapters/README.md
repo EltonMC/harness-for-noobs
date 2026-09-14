@@ -1,17 +1,16 @@
 # Agent-Host Adapters
 
-The harness core is plain Markdown and YAML so it can work in any editor or agent host. Agent-specific files are generated from `.harness/skills/` rather than edited directly.
+The Harness core is plain Markdown, YAML, and Node scripts. Host-specific files are generated or small and versioned.
 
-| Host | Skill destination | Invocation |
-| --- | --- | --- |
-| Codex, Windsurf, Auggie, Amp | `.agents/skills/` | Agent discovers skill or invoke by name |
-| Cursor | `.cursor/skills/` | Agent discovers skill or invoke by name |
-| Claude Code | `.claude/skills/` | Invoke by name |
-| Cline | `.cline/skills/` | Invoke by name |
-| VS Code with GitHub Copilot | `.github/skills/` | Agent discovers skill or invoke by name |
-| VS Code without a skill-aware agent | Keep core artifacts open and run the workflow manually | Use tasks, terminal, and the work-item template |
-| Devin or remote agent | Supply the repository plus a work-item path as the task contract | Require evidence in the work item |
+| Host | Instructions | Skills | Enforced guardrails |
+| --- | --- | --- | --- |
+| Claude Code | `CLAUDE.md` imports `AGENTS.md` | `.claude/skills` | `.claude/settings.json` permissions and hooks, Git hooks, CI |
+| Codex | `AGENTS.md` | `.agents/skills` | `.codex/config.toml` sandbox and approvals, Git hooks, CI |
+| Cursor | `AGENTS.md` | `.agents/skills` | Git hooks, CI |
+| GitHub Copilot | `AGENTS.md` | `.agents/skills` | Git hooks, CI |
+| Cline | `AGENTS.md` | `.cline/skills` | Git hooks, CI |
+| Remote agent (Devin, cloud) | Repository plus a work-item path | — | CI and protected `main` |
 
-Run `node .harness/scripts/install-skill-adapters.mjs --tool <host>` after cloning or when a skill changes. Supported hosts: `agents`, `claude`, `cline`, `cursor`, `github`, and `all`. The optional `--root <path>` installs into a different checkout and is useful for validation.
+`npm run harness -- setup --agents <list>` installs Harness skills (`.harness/skills/`) and external skills for the selected hosts. Edit skills only in `.harness/skills/`, then rerun setup. Never copy external skills manually; see `.harness/workflows/skill-source-maintenance.md`.
 
-External skills use a separate source-maintenance flow. Read `.harness/workflows/skill-source-maintenance.md`; never manually copy BMad, Impeccable, or Caveman between host directories.
+Agent hooks exist only where the host supports them. Git hooks and CI apply to every host and remain the enforced boundary.

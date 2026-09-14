@@ -1,35 +1,40 @@
-version: 1
+version: 3
 project:
   frontend: React
   backend: Supabase
   starter: Vite
-  package_manager: npm
+  package_manager: pnpm
+  application_template: .harness/app-template
 deployment:
   frontend:
     provider: Cloudflare Workers Static Assets
     model: static SPA
     runtime: Cloudflare Workers only for explicit edge/server behavior
-    deploy_contract: CI deploys the verified static build with Wrangler only after the protected main branch receives an approved pull request
+    deploy_contract: CI deploys the merged main commit (database migrations first, then the verified static build); pull requests get preview versions
   backend:
     provider: Supabase
     browser_access: direct only through Auth, RLS, and the publishable client credential
     privileged_logic: Supabase Edge Functions or another explicitly approved server boundary
 execution:
-  local_environment: Docker Compose
-  dependency_installation: inside the application container only
+  local_environment: host Node (.nvmrc) and pinned pnpm; Docker only for the local Supabase stack
+  clean_room: CI installs from the lockfile on a fresh runner
   commands:
-    lint: unset
-    typecheck: unset
-    test: npm run test
-    build: unset
-    e2e: unset
+    verify: npm run harness -- verify
     harness_check: npm run check
+    application_commands: recorded by init-app in .harness/project.yaml
+ownership:
+  harness_owned: updated by Copier releases (this file, AGENTS.md, .harness/scripts, hooks, skills, workflows, templates, memory indexes, docs/guia, .github/workflows)
+  product_owned: never overwritten (.harness/project.yaml, project-context.md, access-matrix.md, design, DATA_DICTIONARY.md, memory pages, work items, handoffs, README.md, package.json, application code)
 artifacts:
+  project_config: .harness/project.yaml
+  harness_baseline: .harness/context/harness-baseline.md
   project_context: .harness/context/project-context.md
   access_matrix: .harness/context/access-matrix.md
   work_items: .harness/work-items
   decisions: docs/decisions
+  owner_guides: docs/guia
   evidence: .harness/evidence
+  logs: .harness/logs
   memory: .harness/memory
   design: .harness/design
   deployment_workflow: .harness/workflows/frontend-deployment.md
@@ -40,10 +45,16 @@ artifacts:
   upstream: .harness/upstream
   downstream_delivery_gates: .harness/workflows/downstream-delivery-gates.md
   skill_source_maintenance: .harness/workflows/skill-source-maintenance.md
+guardrails:
+  agent_hooks: .claude/settings.json -> .harness/hooks/
+  git_hooks: .harness/git-hooks (core.hooksPath, set by setup)
+  ci: .github/workflows/harness-ci.yml and the application CI from the template
+  github: npm run harness -- github-protect
+  boundary: hooks are a safety net; protected main, CI-only deploys, and least-privileged secrets are authoritative
 source_control:
-  provider_default: GitHub when a remote repository is created
+  provider_default: GitHub
   protected_branch: main
-  change_flow: feature branch -> pull request -> required checks -> human approval -> squash merge -> CI deployment
+  change_flow: feature branch -> pull request -> required checks -> owner review with preview -> squash merge -> CI deployment
   direct_production_deploys: forbidden
   merge_strategy: squash
 database:
@@ -56,15 +67,15 @@ database:
     review_reports: .harness/database/reviews
   quality_gates:
     - local migration reset succeeds
-    - database lint has no errors
-    - pgTAP database tests pass
+    - database lint has no warnings
+    - pgTAP tests pass, including the public-schema RLS guard
     - security and performance advisors reviewed when available
     - DBA review is approved or approved with recorded conditions
 upstream:
-  method: BMad Method
+  method: BMad Method (essential skill profile)
   artifact_root: _bmad-output
   approved_handoffs: .harness/upstream/approved
-  entry_rule: downstream implementation starts only from an approved BMad handoff or a proportional direct work item
+  entry_rule: downstream implementation starts only from an approved BMad handoff or a proportional direct/session work item
   source_of_truth: BMad planning artifacts define product intent; Harness artifacts define implementation evidence and operational controls
   context_boundary:
     default_downstream_context: approved handoff and scoped work item
@@ -72,7 +83,7 @@ upstream:
     prohibited: bulk, recursive, or default loading of _bmad-output artifacts
     retrieval_record: record the source path, heading, and concise conclusion in the work item or refreshed handoff
 downstream:
-  sizing: proportional direct / session / story-or-epic
+  sizing: direct (no work-item file) / session / story / epic
   readiness: PASS / CONCERNS / FAIL before implementation
   required_preimplementation_record:
     - intent gaps
@@ -89,17 +100,25 @@ tdd:
   evidence:
     - initial failing test and reason
     - passing focused test
-    - full relevant suite result
+    - verify result
 token_economy:
-  default_response: concise
-  context_strategy: load artifacts on demand; use approved upstream handoffs as the default boundary and do not repeat repository context in prompts
-  measurement: record provider-reported input, output, reasoning, and cached tokens when available
+  default_response: concise for agents; plain and complete for the owner
+  deterministic_first: scaffolding, verification, diagnosis, and protection are scripts, not agent work
+  context_strategy: load artifacts on demand; locate with search or the harness-scout subagent before reading
+  output_strategy: verify prints failure summaries; full logs stay on disk
+  measurement: record provider-reported input, output, and cached tokens when available
 skill_maintenance:
   external_sources_lock: .harness/skill-sources.lock.json
   skills_cli_lock: skills-lock.json
-  update_policy: weekly non-mutating check; manually prepared draft pull request; human approval before merge
+  update_policy: weekly non-mutating check; manually prepared pull request; human approval before merge
+harness_distribution:
+  tool: Copier
+  version_file: .harness/VERSION
+  changelog: CHANGELOG.md
+  update_policy: weekly workflow opens a pull request; product-owned files are skipped
 conventions:
   code_language: English
+  owner_facing_language: owner_locale in .harness/project.yaml (default pt-BR) for conversation, PR summaries, and BMad; Harness guides and CLI messages are Portuguese
   user_facing_copy: follow the documented product locale; translation keys remain English
 memory:
   model: versioned markdown wiki with on-demand retrieval
@@ -107,12 +126,14 @@ memory:
     - source code
     - database migrations
     - accepted architecture decisions
+    - Harness workflows
   capture:
-    - architecture decisions and their rationale
+    - product decisions without an ADR
     - discovered gotchas and verified workarounds
-    - repeatable procedures
+    - project-specific procedures
     - active cross-agent handoffs
   exclusions:
+    - restatements of ADRs or workflows
     - raw transcripts
     - unfiltered command output
     - credentials or personal data

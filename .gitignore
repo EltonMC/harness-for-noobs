@@ -2,35 +2,49 @@
 .env
 .env.*
 !.env.example
+.dev.vars
 
 # JavaScript and build artifacts
 node_modules/
 dist/
 coverage/
+playwright-report/
+test-results/
+.wrangler/
 
-# Docker and Supabase local state
-.docker/
+# Supabase local state
 supabase/.temp/
-supabase/volumes/
+supabase/.branches/
 
-# Generated planning, evidence, and Impeccable runtime artifacts
+# Generated planning, evidence, logs, and Impeccable runtime artifacts
 _bmad-output/
-_bmad/config.user.toml
 .harness/evidence/*.md
+.harness/logs/
 .harness/.managed-adapters.json
+.harness/.local-state.json
+.harness/.skill-cache/
 .harness/.update-backup/
 .impeccable/
 
-# Generated host adapters and installed external skills.
+# Project-local BMad runtime; recreate it with `npm run harness -- setup`.
+_bmad/
+
+# Installed skills are generated per agent by `npm run harness -- setup`.
+# Agent settings, hooks, and Harness subagents stay versioned.
 .agents/
-.claude/
 .cline/
 .cursor/
 .devin/
 .github/skills/
+.claude/skills/
+.claude/agents/*
+!.claude/agents/harness-*.md
+.claude/settings.local.json
+.claude/worktrees/
 
-# Project-local BMad runtime; recreate it with bootstrap-skills.mjs.
-_bmad/
+# Copier update conflict leftovers
+*.rej
+*.orig
 
 # OS and editor noise
 .DS_Store

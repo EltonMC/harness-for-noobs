@@ -1,0 +1,46 @@
+{
+  "type": "module",
+  "packageManager": "pnpm@12.4.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:test": "supabase test db",
+    "db:lint": "supabase db lint --level warning --fail-on warning",
+    "db:types": "supabase gen types typescript --local > src/lib/database.types.ts",
+    "verify": "node .harness/scripts/harness-cli.mjs verify"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.116.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.13",
+    "@playwright/test": "1.63.0",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
+    "@types/node": "24.13.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "jsdom": "30.0.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.0",
+    "vitest": "5.0.0",
+    "wrangler": "4.129.0"
+  }
+}

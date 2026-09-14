@@ -1,0 +1,28 @@
+# {{ project_name }}
+
+Projeto criado com o [Harness for Noobs](https://github.com/EltonMC/harness-for-noobs): um conjunto de regras, proteções e skills para construir uma aplicação React + Supabase com agentes de IA, com segurança e sem desperdiçar tokens.
+
+## Primeira vez neste computador
+
+```bash
+npm run harness -- doctor     # mostra o que falta instalar, com o comando exato
+npm run harness -- setup      # instala skills, Git hooks e proteções
+```
+
+Depois abra seu agente nesta pasta e peça: **"use harness-start"**.
+
+## Dia a dia
+
+| Quero… | Comando ou pedido ao agente |
+| --- | --- |
+| Começar algo novo | "use harness-start: quero …" |
+| Rodar a aplicação | `pnpm db:start` e depois `pnpm dev` |
+| Conferir se está tudo certo | `npm run harness -- verify` |
+| Entregar para revisão | "prepare o pull request" |
+| Algo deu errado | "use harness-recovery" |
+
+Guias em português: [docs/guia](docs/guia/01-instalacao.md).
+
+## Atualizações do Harness
+
+Toda segunda-feira o GitHub verifica se há uma nova versão do Harness. Com o secret `HARNESS_UPDATE_TOKEN` configurado, abre um pull request explicando o que mudou; sem ele, abre uma issue com o passo a passo. Veja [docs/guia/07-atualizando-o-harness.md](docs/guia/07-atualizando-o-harness.md).

@@ -1,0 +1,10 @@
+# Supply-chain safety defaults (see docs/decisions/0010-pnpm-package-manager.md).
+# Wait 3 days (in minutes) before installing a newly published version: most
+# malicious releases are detected and removed within that window.
+minimumReleaseAge: 4320
+# Dependencies may run install scripts only when explicitly reviewed here.
+# Anything else fails the install until a person approves it.
+strictDepBuilds: true
+allowBuilds:
+  esbuild: true
+  workerd: true
