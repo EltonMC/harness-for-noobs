@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readApplicationState } from './application-state.mjs';
@@ -12,7 +12,8 @@ import { exists, repositoryRoot } from './skill-source-utils.mjs';
 // screen, so agents read only what they need to fix.
 
 const quickScripts = ['typecheck', 'test'];
-const fullScripts = ['lint', 'typecheck', 'test', 'build'];
+const fullScripts = ['lint', 'typecheck', 'knip', 'test', 'build'];
+const databaseTypesPath = join('src', 'lib', 'database.types.ts');
 const databaseScripts = ['db:lint', 'db:test'];
 // Harness-owned database gates run directly, so they reach projects whose package.json predates them.
 const harnessDatabaseCommands = [
@@ -22,13 +23,16 @@ const harnessDatabaseCommands = [
 const failureMarker = /\b(?:error|fail(?:ed|ure)?|exception|cannot|unable|not found|expected|received)\b|✖|×|✗|FAIL|ERR!/i;
 
 export function planVerification(scripts, { quick = false, e2e = false, database = false } = {}) {
-  const selected = (quick ? quickScripts : fullScripts).filter((script) => scripts[script]);
+  // Full verification measures coverage when the project defines it; quick feedback stays fast.
+  const withCoverage = (script) => (!quick && script === 'test' && scripts['test:coverage'] ? 'test:coverage' : script);
+  const selected = (quick ? quickScripts : fullScripts).filter((script) => scripts[script]).map(withCoverage);
   const steps = selected.map((script) => ({ script, kind: 'script' }));
   if (!quick && scripts.build) steps.push({ script: 'bundle-secrets', kind: 'bundle-secrets' });
   if (database && scripts['db:test']) {
     if (!quick) steps.push({ script: 'db:guard', kind: 'database-guard' }, { script: 'supabase:config', kind: 'config-guard' });
     steps.push(...databaseScripts.filter((script) => scripts[script]).map((script) => ({ script, kind: 'database' })));
     steps.push(...harnessDatabaseCommands.map((step) => ({ ...step, kind: 'database' })));
+    if (!quick && scripts['db:types']) steps.push({ script: 'db:types-check', kind: 'database-types' });
   }
   if (e2e && scripts['test:e2e']) steps.push({ script: 'test:e2e', kind: 'script' });
   return steps;
@@ -52,9 +56,27 @@ async function localDatabaseRunning(root) {
   return result.code === 0;
 }
 
+function localDatabaseTypes(root) {
+  return runCaptured('supabase', ['gen', 'types', 'typescript', '--local'], { cwd: root, timeoutMs: 120_000 });
+}
+
+function runDatabaseCommand(command, args, options) {
+  return runCaptured(command, args, { ...options, timeoutMs: 600_000 });
+}
+
+// The committed types must match the local schema, or the typed client lies about the database.
+// Compared byte for byte, like the Database gate in CI.
+async function checkDatabaseTypes(committed, root, generateDatabaseTypes) {
+  const generated = await generateDatabaseTypes(root);
+  if (generated.code !== 0) return { code: generated.code, output: generated.output };
+  if (generated.stdout === committed) return { code: 0, output: 'Database types match the local schema.' };
+  return { code: 1, output: `Error: ${databaseTypesPath} is out of date with the local schema. Run: pnpm db:types` };
+}
+
 export async function runVerification({
   root = repositoryRoot, quick = false, e2e = false, database = !quick, print = console.log, isDatabaseRunning = localDatabaseRunning,
-  guardDatabase = runDatabaseGuard, guardConfig = runSupabaseConfigGuard,
+  guardDatabase = runDatabaseGuard, guardConfig = runSupabaseConfigGuard, generateDatabaseTypes = localDatabaseTypes,
+  runDatabaseCommand: runHarnessDatabaseCommand = runDatabaseCommand,
 } = {}) {
   const application = await readApplicationState(root);
   const steps = planVerification(application.scripts, { quick, e2e, database });
@@ -75,7 +97,16 @@ export async function runVerification({
       print(`• ${step.script} pulado — o build falhou, então não há pacote novo para verificar.`);
       continue;
     }
-    if (step.kind === 'database') {
+    let committedTypes;
+    if (step.kind === 'database-types') {
+      committedTypes = await readFile(join(root, databaseTypesPath), 'utf8').catch(() => null);
+      if (committedTypes === null) {
+        skipped.push(step.script);
+        print(`• ${step.script} pulado — ${databaseTypesPath} ainda não existe (gere com: pnpm db:types)`);
+        continue;
+      }
+    }
+    if (step.kind === 'database' || step.kind === 'database-types') {
       databaseAvailability ??= !application.hasSupabaseConfig
         ? 'Supabase não inicializado — rode: supabase init'
         : await isDatabaseRunning(root) ? 'running' : 'Supabase local desligado — rode: pnpm db:start';
@@ -100,8 +131,10 @@ export async function runVerification({
       const findings = await exists(join(root, 'dist')) ? await scanDirectory(join(root, 'dist')) : [];
       code = findings.length === 0 ? 0 : 1;
       output = findings.length === 0 ? 'No secrets in dist/.' : `Secrets found in the browser bundle:\n${renderFindings(findings)}`;
+    } else if (step.kind === 'database-types') {
+      ({ code, output } = await checkDatabaseTypes(committedTypes, root, generateDatabaseTypes));
     } else if (step.command) {
-      ({ code, output } = await runCaptured(step.command[0], step.command[1], { cwd: root, timeoutMs: 600_000 }));
+      ({ code, output } = await runHarnessDatabaseCommand(step.command[0], step.command[1], { cwd: root }));
     } else {
       ({ code, output } = await runCaptured(application.packageManager, ['run', step.script], {
         cwd: root, env: { ...process.env, CI: process.env.CI ?? '1', FORCE_COLOR: '0' },

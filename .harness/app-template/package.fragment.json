@@ -2,7 +2,7 @@
   "type": "module",
   "packageManager": "pnpm@12.4.1",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.22.0"
   },
   "scripts": {
     "dev": "vite",
@@ -11,9 +11,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
+    "knip": "knip",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
@@ -26,10 +28,14 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "2.116.0",
+    "@tanstack/react-query": "5.102.8",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "react-router": "8.3.1",
+    "zod": "4.5.4"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@biomejs/biome": "2.5.13",
     "@playwright/test": "1.63.0",
     "@testing-library/jest-dom": "7.0.1",
@@ -39,7 +45,10 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
+    "@vitest/coverage-v8": "5.0.0",
+    "axe-core": "4.13.0",
     "jsdom": "30.0.1",
+    "knip": "6.34.0",
     "typescript": "7.0.2",
     "vite": "8.3.0",
     "vitest": "5.0.0",

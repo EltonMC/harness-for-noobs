@@ -26,7 +26,9 @@ Você conversa; o agente executa; as proteções conferem; **você decide o merg
    ```bash
    npm run harness -- verify
    ```
-   Se aparecer "Tudo verde.", está pronto para revisão.
+   Se aparecer "Tudo verde.", está pronto para revisão. Em mudanças maiores, o agente também pede uma revisão ao `harness-code-reviewer`, um segundo agente que lê só a mudança, sem o histórico da conversa, e aponta problemas antes do PR.
+
+   Se o agente disser que o código mudou sem teste, ou que um teste perdeu verificações, pergunte o motivo. Só é aceitável em mudanças de texto ou de estilo.
 
 5. **Entregue**
    > prepare o pull request

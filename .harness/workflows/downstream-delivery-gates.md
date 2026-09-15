@@ -31,7 +31,7 @@ Stop downstream work when a discovery changes an approved requirement, UX decisi
 
 ## 5. Review independently
 
-Before PR, conduct a fresh-context review for qualifying changes. The reviewer reads the work item, upstream handoff when present, relevant diff, tests, and risk surfaces; records findings and dispositions. Use `bmad-code-review` when available, but retain the Harness work item as the evidence record.
+Before PR, conduct a fresh-context review for qualifying changes. The reviewer reads the work item, upstream handoff when present, relevant diff, tests, and risk surfaces; records findings and dispositions. Use the `harness-code-reviewer` subagent, which checks `.harness/context/code-conventions.md`; `bmad-code-review` is an alternative. Retain the Harness work item as the evidence record.
 
 ## Deferred practices
 

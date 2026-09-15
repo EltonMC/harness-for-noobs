@@ -26,6 +26,6 @@ User-facing copy is not governed by this ADR. It follows the documented product 
 
 ## Evidence
 
-- `.harness/context/agent-readable-code.md`
+- `.harness/context/code-conventions.md` (formerly `agent-readable-code.md`; see ADR 0016)
 - `.harness/skills/harness-feature-delivery/SKILL.md`
 - `.harness/work-items/2026-09-13-english-technical-code.md`

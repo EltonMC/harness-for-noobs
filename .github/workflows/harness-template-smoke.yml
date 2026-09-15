@@ -44,6 +44,7 @@ jobs:
         run: |
           pnpm lint
           pnpm typecheck
-          pnpm test
+          pnpm knip
+          pnpm test:coverage
           pnpm build
           node .harness/scripts/secret-scan.mjs --dir dist

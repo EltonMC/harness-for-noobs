@@ -17,7 +17,7 @@ Um resumo em linguagem simples das proteções automáticas e do que ainda depen
 | Regras das Edge Functions | Função aberta para qualquer site ou sem checar quem chama | `verify` e **Security scan** |
 | Verificação dos workflows (actionlint e zizmor) | CI que vaza credenciais | **Harness checks** |
 | Teste passivo da prévia (OWASP ZAP) | Falhas visíveis de fora no site | Prévia do PR (relatório em Artifacts) |
-| Agente vigiado | Mandar arquivos para fora, conectar na produção, instalar MCP sem você saber | Hooks do Claude Code (Codex sem rede) |
+| Agente vigiado | Mandar arquivos para fora, conectar na produção, instalar MCP sem você saber | Hooks do Claude Code e do Codex (Codex sem rede) |
 
 ## O que depende de você
 
@@ -42,4 +42,4 @@ Pergunte **por que** antes de aceitar. Instruções escondidas em páginas, issu
 ## Limites
 
 - As proteções pegam os erros mais comuns, não todos. Para produtos com dados sensíveis, pagamentos ou muitos usuários, contrate um teste de invasão (*pentest*) antes de lançar.
-- Codex, Cursor, Copilot e Cline não executam os hooks do agente: para eles valem os Git hooks e o CI.
+- Cursor, Copilot e Cline não executam os hooks do agente: para eles valem os Git hooks e o CI. O Codex executa os hooks, mas edições feitas com `apply_patch` não passam pelas regras de edição; nesse caso também valem os Git hooks e o CI.
