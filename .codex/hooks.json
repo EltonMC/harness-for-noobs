@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.harness/hooks/claude-pre-tool.mjs\"",
+            "command": "node \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.harness/hooks/claude-pre-tool.mjs\"",
             "timeout": 15
           }
         ]
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.harness/hooks/claude-post-edit.mjs\"",
+            "command": "node \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.harness/hooks/claude-post-edit.mjs\"",
             "timeout": 60
           }
         ]
@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.harness/hooks/claude-stop-verify.mjs\"",
+            "command": "node \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.harness/hooks/claude-stop-verify.mjs\"",
             "timeout": 300
           }
         ]

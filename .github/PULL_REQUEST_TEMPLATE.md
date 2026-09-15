@@ -26,8 +26,9 @@ Sem prévia (Cloudflare não configurado) ou quando o PR muda o banco: use o com
 - Readiness: PASS / accepted CONCERNS
 - TDD red → green recorded in the work item
 - `npm run harness -- verify` → green (skipped gates explained)
-- UI changed: accessibility and visual evidence attached / not applicable
-- Independent review: done / not required because …
+- Quality: conventions followed (`.harness/context/code-conventions.md`), Knip clean, coverage thresholds unchanged, no skipped or weakened tests
+- UI changed: axe checks, accessibility, and visual evidence attached / not applicable
+- Independent review: `harness-code-reviewer` findings resolved / not required because …
 
 ### Supabase impact
 

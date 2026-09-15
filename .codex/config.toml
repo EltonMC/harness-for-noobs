@@ -1,5 +1,8 @@
-# Project defaults for Codex. Codex does not run the Harness agent hooks, so the
-# Git hooks (`npm run harness -- setup`) and CI remain the enforced guardrails.
+# Project defaults for Codex. Codex runs the Harness agent hooks from
+# .codex/hooks.json (resolved from the Git root, since Codex does not set
+# CLAUDE_PROJECT_DIR); the Git hooks (`npm run harness -- setup`) and CI remain
+# the enforced guardrails. Codex edits made with apply_patch carry no file path,
+# so the edit rules still depend on the Git hooks and CI.
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 

@@ -9,13 +9,52 @@
   "linter": {
     "rules": {
       "preset": "recommended",
+      "complexity": {
+        "noExcessiveCognitiveComplexity": { "level": "error", "options": { "maxAllowedComplexity": 15 } }
+      },
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error",
+        "useExhaustiveDependencies": "error"
+      },
       "security": {
         "noDangerouslySetInnerHtml": "error",
         "noDangerouslySetInnerHtmlWithChildren": "error",
         "noGlobalEval": "error",
         "noBlankTarget": "error"
+      },
+      "style": {
+        "noNonNullAssertion": "error",
+        "noParameterAssign": "error",
+        "useImportType": "error",
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "paths": {
+              "@supabase/supabase-js": "Only src/lib and src/features/<feature>/api talk to Supabase. Import a function from the feature's api module instead."
+            },
+            "patterns": [
+              {
+                "group": ["**/lib/supabase", "@/lib/supabase"],
+                "message": "Only src/features/<feature>/api modules use the Supabase client. Components and hooks call those functions."
+              }
+            ]
+          }
+        }
+      },
+      "suspicious": {
+        "noConsole": { "level": "error", "options": { "allow": ["error", "warn"] } },
+        "noExplicitAny": "error",
+        "noFocusedTests": "error",
+        "noSkippedTests": "error"
       }
     }
   },
+  "overrides": [
+    {
+      "includes": ["src/lib/**", "src/features/*/api/**"],
+      "linter": { "rules": { "style": { "noRestrictedImports": "off" } } }
+    }
+  ],
   "assist": { "actions": { "source": { "organizeImports": "on" } } }
 }

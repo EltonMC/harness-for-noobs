@@ -26,6 +26,14 @@ Mudanças do Harness, da mais nova para a mais antiga. Cada versão diz se você
   - **Processo:** seção de segurança no work item, padrões de segurança para agentes, guia de incidente com LGPD e `SECURITY.md`.
 - **Correção:** o hook não bloqueia mais comandos com `*` (ex.: `ls pasta/*`) achando que poderiam ler o `.env`.
 - Os comentários de prévia e de banco no PR não se sobrescrevem mais.
+- **Código com padrão de qualidade** (ADR 0016).
+  - **Convenções de código** (`.harness/context/code-conventions.md`) que o agente lê sempre antes de programar: organização por funcionalidade, onde o banco é chamado, textos da tela, mensagens de erro e testes.
+  - **Template da aplicação mais completo:** rotas com página de erro e de "não encontrado", cache de dados do servidor (TanStack Query), validação (zod), textos traduzíveis com checagem de chave e cliente do Supabase com os tipos do banco.
+  - **Regras mais rígidas:** o lint barra `any`, testes desligados (`.skip`/`.only`), acesso ao Supabase fora do lugar certo e funções complexas demais.
+  - **Testes que provam de verdade:** cobertura mínima, checagem de acessibilidade (axe) nos testes e no navegador, e o Knip aponta código e dependências sem uso. O `verify` avisa quando os tipos do banco ficaram desatualizados.
+  - **Agente mais cuidadoso ao encerrar:** avisa quando o código mudou sem teste ou quando um teste perdeu verificações, e não desiste da verificação na segunda tentativa.
+  - **Novo revisor** `harness-code-reviewer` para revisar a mudança antes do PR; o `harness-scout` agora aponta o que já existe para reaproveitar.
+  - **Correção:** os hooks do Codex não iniciavam (usavam uma variável que só o Claude Code define).
 
 ### Precisa fazer algo?
 
@@ -35,6 +43,7 @@ Sim:
 2. **Mova os segredos de deploy para os ambientes** `production` e `preview` (guia 02) e ligue 2FA nas contas (guia 10).
 3. Rode `node .harness/scripts/supabase-config-guard.mjs --fix` e copie `public/_headers` e `src/security-headers.test.ts` de `.harness/app-template/` para o projeto (peça ao agente). Adicione `Security scan` aos checks obrigatórios com `github-protect --apply`.
 4. Projetos que já têm tabelas: rode `npm run harness -- verify` com `pnpm db:start`. Se as novas regras apontarem problemas, peça ao agente "use harness-database-steward para adequar o banco às novas regras" e aprove a migration de correção.
+5. Projetos que já têm aplicação: os novos padrões valem para projetos novos. Para adotar no seu, peça ao agente "adote as convenções da ADR 0016 do Harness": ele adiciona os scripts `knip`, `test:coverage` e `db:types`, as regras do `biome.json` e corrige o que as regras apontarem, em um PR separado.
 
 ## [0.3.0] — 2026-09-14
 

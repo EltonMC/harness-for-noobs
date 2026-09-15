@@ -29,6 +29,8 @@ artifacts:
   project_config: .harness/project.yaml
   harness_baseline: .harness/context/harness-baseline.md
   project_context: .harness/context/project-context.md
+  code_conventions: .harness/context/code-conventions.md
+  code_reviewer_agent: .claude/agents/harness-code-reviewer.md (Codex: .codex/agents/harness-code-reviewer.toml)
   access_matrix: .harness/context/access-matrix.md
   work_items: .harness/work-items
   decisions: docs/decisions
@@ -123,7 +125,20 @@ tdd:
   evidence:
     - initial failing test and reason
     - passing focused test
+    - refactor checklist, Knip, and coverage result
     - verify result
+code_quality:
+  decision: docs/decisions/0016-application-code-conventions.md
+  conventions: .harness/context/code-conventions.md
+  gates:
+    - Biome strict rules (no any, no non-null assertions, no skipped or focused tests, restricted Supabase imports, cognitive complexity 15, accessibility)
+    - TypeScript strict with noUncheckedIndexedAccess, noImplicitReturns, and noImplicitOverride
+    - Knip reports unused files, exports, and dependencies
+    - Vitest coverage thresholds (80% lines, functions, statements; 75% branches)
+    - axe-core in component tests and the Playwright smoke test
+    - generated database types match the local schema
+    - the Stop hook flags source changes without tests, removed assertions, and skipped tests once per change set
+  review: fresh-context harness-code-reviewer subagent with the conventions checklist
 token_economy:
   default_response: concise for agents; plain and complete for the owner
   deterministic_first: scaffolding, verification, diagnosis, and protection are scripts, not agent work

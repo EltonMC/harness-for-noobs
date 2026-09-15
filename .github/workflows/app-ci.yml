@@ -59,8 +59,16 @@ jobs:
         name: Type-check
         run: pnpm typecheck
       - if: steps.app.outputs.exists == 'true'
-        name: Unit and component tests
-        run: pnpm test
+        name: Unused files, exports, and dependencies
+        run: pnpm run --if-present knip
+      - if: steps.app.outputs.exists == 'true'
+        name: Unit and component tests (with coverage thresholds when configured)
+        run: |
+          if node -e "process.exit(require('./package.json').scripts?.['test:coverage'] ? 0 : 1)"; then
+            pnpm test:coverage
+          else
+            pnpm test
+          fi
       - if: steps.app.outputs.exists == 'true'
         name: Build
         run: pnpm build
@@ -146,6 +154,18 @@ jobs:
       - if: steps.db.outputs.exists == 'true'
         name: Supabase security advisors
         run: supabase db advisors --local --type security --level warn --fail-on warn
+      - if: steps.db.outputs.exists == 'true'
+        name: Generated database types match the migrations
+        run: |
+          if [ ! -f src/lib/database.types.ts ]; then
+            echo "::notice::src/lib/database.types.ts not found; database types check skipped."
+            exit 0
+          fi
+          supabase gen types typescript --local > "$RUNNER_TEMP/database.types.ts"
+          if ! diff -q src/lib/database.types.ts "$RUNNER_TEMP/database.types.ts" > /dev/null; then
+            echo "::error::src/lib/database.types.ts is out of date. Run pnpm db:types with the local database on and commit the result."
+            exit 1
+          fi
 
   security:
     name: Security scan

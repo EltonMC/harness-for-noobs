@@ -39,6 +39,22 @@ test('review: renders project names safely for JavaScript and HTML', () => {
   assert.equal(rendered, '<title>Pão &lt;d&#39;Água&gt; &amp; Cia</title><html lang="pt-BR"> const n = "Pão <d\'Água> & Cia";');
 });
 
+test('quality: refuses a product locale the template has no copy catalog for, before writing anything', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'harness-init-app-locale-'));
+  try {
+    const template = join(root, '.harness', 'app-template');
+    await mkdir(template, { recursive: true });
+    await writeFile(join(template, 'package.fragment.json'), JSON.stringify({ dependencies: { react: '19.3.0' } }));
+    await writeFile(join(template, 'index.html'), '<html lang="__PRODUCT_LOCALE__">');
+    await writeFile(join(root, 'package.json'), JSON.stringify({ name: 'demo', scripts: {} }));
+
+    await assert.rejects(initApplication({ root, projectName: 'Demo', productLocale: 'fr-FR', runSupabaseInit: false }), /fr-FR[\s\S]*pt-BR, en-US, es-ES/);
+    await assert.rejects(readFile(join(root, 'index.html')));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('derives a valid Cloudflare Worker name', () => {
   assert.equal(toWorkerName('Controle de Gastos 2!'), 'controle-de-gastos-2');
   assert.equal(toWorkerName('***'), 'app');
@@ -93,7 +109,9 @@ test('review: scaffolds the real template with no placeholders, a lockfile, and 
     assert.equal(packageJson.name, 'pao-d-agua');
     assert.equal(packageJson.version, '0.1.0');
     assert.match(await readFile(join(root, 'index.html'), 'utf8'), /<html lang="en-US">[\s\S]*<title>Pão d&#39;Água<\/title>/);
-    assert.match(await readFile(join(root, 'src', 'App.tsx'), 'utf8'), /"Pão d'Água"/);
+    assert.match(await readFile(join(root, 'src', 'features', 'home', 'HomePage.tsx'), 'utf8'), /"Pão d'Água"/);
+    assert.match(await readFile(join(root, 'src', 'shared', 'i18n', 'translate.ts'), 'utf8'), /productLocale: ProductLocale = 'en-US'/);
+    assert.ok(files.includes('knip.json'));
     const project = parseProjectConfig(await readFile(join(root, '.harness', 'project.yaml'), 'utf8'));
     assert.equal(project.commands.lint, 'pnpm lint');
     assert.equal(project.commands.e2e, 'pnpm test:e2e');
