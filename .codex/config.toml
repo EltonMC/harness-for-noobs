@@ -2,3 +2,8 @@
 # Git hooks (`npm run harness -- setup`) and CI remain the enforced guardrails.
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"
+
+# No network from sandboxed commands by default: content fetched from the web or
+# issues can carry prompt-injected instructions to exfiltrate code or data.
+[sandbox_workspace_write]
+network_access = false

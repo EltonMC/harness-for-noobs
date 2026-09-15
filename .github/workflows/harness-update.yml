@@ -29,7 +29,7 @@ jobs:
       HARNESS_UPDATE_TOKEN: ${{ secrets.HARNESS_UPDATE_TOKEN }}
       BOT_EMAIL: harness-update@users.noreply.github.com
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1  # zizmor: ignore[artipacked] this job pushes the update branch
         with:
           fetch-depth: 0
           token: ${{ secrets.HARNESS_UPDATE_TOKEN || github.token }}
@@ -75,6 +75,7 @@ jobs:
             echo "❌ Testes do Harness falharam. Não faça merge; peça ao agente: \"use harness-recovery\"." > /tmp/tests.md
           fi
           git diff -z --name-only | xargs -0 -r grep -l '^<<<<<<< ' 2>/dev/null > /tmp/conflicts.txt || true
+          # shellcheck disable=SC2016 # the single-quoted argument is JavaScript
           node -e '
             const fs = require("fs");
             const [current] = process.argv.slice(1);
@@ -94,6 +95,8 @@ jobs:
           NEXT: ${{ steps.update.outputs.next }}
           BRANCH: ${{ steps.update.outputs.branch }}
         run: |
+          # actions/checkout does not create origin/HEAD; the comparisons below need it.
+          git remote set-head origin --auto > /dev/null
           if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
             git fetch origin "$BRANCH"
             foreign=$(git log --format='%ae' "origin/$BRANCH" --not origin/HEAD | grep -vx "$BOT_EMAIL" || true)
@@ -106,6 +109,7 @@ jobs:
           git add -A
           git commit -m "chore: update Harness $CURRENT -> $NEXT"
           git push --force origin "$BRANCH"
+          git diff --name-only HEAD~1 HEAD -- .github/workflows .harness/hooks .harness/git-hooks .harness/database/guards .claude/settings.json .codex/config.toml > /tmp/guardrails.txt
           {
             echo "## Atualização do Harness: $CURRENT → $NEXT"
             echo
@@ -116,6 +120,11 @@ jobs:
               echo
               echo "⚠️ **Conflitos para resolver antes do merge** (peça ao agente: \"resolva os conflitos deste PR do Harness mantendo as decisões do meu produto\"):"
               sed 's/^/- /' /tmp/conflicts.txt
+            fi
+            if [ -s /tmp/guardrails.txt ]; then
+              echo
+              echo "🔴 **Esta atualização muda proteções do projeto** (CI, hooks ou verificações do banco). Confira se o CHANGELOG explica cada arquivo abaixo antes do merge. Mudança sem explicação pode ser um ataque ao repositório do Harness: não faça merge e peça ajuda."
+              sed 's/^/- /' /tmp/guardrails.txt
             fi
             echo
             echo "### O que mudou"

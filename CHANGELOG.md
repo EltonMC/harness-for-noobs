@@ -15,6 +15,15 @@ Mudanças do Harness, da mais nova para a mais antiga. Cada versão diz se você
   - **Deploy:** confere tudo o que ainda não rodou em produção; migration que apaga ou reescreve dados espera sua aprovação no GitHub. Em repositório privado, guarda a estrutura do banco por 30 dias antes de aplicar.
   - **Agente longe da produção:** bloqueados psql/pg_dump para bancos remotos, `supabase db query --linked`, `supabase db dump` e ferramentas MCP de banco.
   - O `verify` falha, em vez de pular, quando o trabalho muda o banco e o Supabase local está desligado.
+- **Segurança da aplicação** (ADR 0015, guias `09-incidente-de-seguranca.md` e `10-seguranca.md`).
+  - **Segredos de deploy nos ambientes do GitHub** (`production` e `preview`), não mais no repositório; o `github-protect` avisa quando encontra segredos no lugar errado.
+  - **Cabeçalhos de segurança no site** (CSP, HSTS e outros), com teste e conferência no deploy.
+  - **Login mais forte por padrão:** senha de 10+ caracteres, confirmação de e-mail, 2FA disponível, sessão de 1 hora. Nova checagem do `supabase/config.toml` e das Edge Functions.
+  - **Arquivos (Storage):** buckets com limite de tamanho e tipo; bucket público só com exceção justificada.
+  - **Novo check obrigatório "Security scan"** (Semgrep e checagem do Supabase), **auditoria de dependências** no Quality gate e **OWASP ZAP** na prévia.
+  - **Workflows mais seguros** (credenciais não ficam no disco; actionlint e zizmor no Harness CI). O PR de atualização do Harness destaca em vermelho mudanças em proteções.
+  - **Agente:** pede confirmação antes de enviar arquivos para fora; servidores MCP não são ligados automaticamente; Codex sem rede.
+  - **Processo:** seção de segurança no work item, padrões de segurança para agentes, guia de incidente com LGPD e `SECURITY.md`.
 - **Correção:** o hook não bloqueia mais comandos com `*` (ex.: `ls pasta/*`) achando que poderiam ler o `.env`.
 - Os comentários de prévia e de banco no PR não se sobrescrevem mais.
 
@@ -23,7 +32,9 @@ Mudanças do Harness, da mais nova para a mais antiga. Cada versão diz se você
 Sim:
 
 1. Rode `npm run harness -- setup` (skills atualizadas) e `npm run harness -- github-protect --apply` (cria o ambiente `production-destructive`).
-2. Projetos que já têm tabelas: rode `npm run harness -- verify` com `pnpm db:start`. Se as novas regras apontarem problemas, peça ao agente "use harness-database-steward para adequar o banco às novas regras" e aprove a migration de correção.
+2. **Mova os segredos de deploy para os ambientes** `production` e `preview` (guia 02) e ligue 2FA nas contas (guia 10).
+3. Rode `node .harness/scripts/supabase-config-guard.mjs --fix` e copie `public/_headers` e `src/security-headers.test.ts` de `.harness/app-template/` para o projeto (peça ao agente). Adicione `Security scan` aos checks obrigatórios com `github-protect --apply`.
+4. Projetos que já têm tabelas: rode `npm run harness -- verify` com `pnpm db:start`. Se as novas regras apontarem problemas, peça ao agente "use harness-database-steward para adequar o banco às novas regras" e aprove a migration de correção.
 
 ## [0.3.0] — 2026-09-14
 

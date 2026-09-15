@@ -20,7 +20,8 @@ Crie **dois projetos no Supabase**: `meu-app-preview` (para as prévias dos PRs)
 
 1. Crie a conta em [supabase.com](https://supabase.com) e os dois projetos. Anote a senha do banco de produção.
 2. Em cada projeto: **Project Settings → API**. Copie a *Project URL* e a *Publishable key*.
-3. Crie um token pessoal em **Account → Access Tokens**.
+3. Crie um token pessoal em **Account → Access Tokens**, com nome "github-deploy" e **data de expiração** (ex.: 90 dias). Anote no calendário quando renovar.
+4. Ligue a autenticação em dois fatores na sua conta do Supabase (**Account → Security**).
 
 | Onde no GitHub | Nome | Valor |
 | --- | --- | --- |
@@ -29,22 +30,30 @@ Crie **dois projetos no Supabase**: `meu-app-preview` (para as prévias dos PRs)
 | Variables | `PRODUCTION_SUPABASE_PUBLISHABLE_KEY` | Publishable key de produção |
 | Variables | `PREVIEW_SUPABASE_URL` | Project URL do preview |
 | Variables | `PREVIEW_SUPABASE_PUBLISHABLE_KEY` | Publishable key do preview |
-| Secrets | `SUPABASE_ACCESS_TOKEN` | Token pessoal |
-| Secrets | `SUPABASE_DB_PASSWORD` | Senha do banco de produção |
+| Environment `production` → Secrets | `SUPABASE_ACCESS_TOKEN` | Token pessoal |
+| Environment `production` → Secrets | `SUPABASE_DB_PASSWORD` | Senha do banco de produção |
+
 
 > Nunca use a chave `service_role` ou `sb_secret_…` na aplicação. Ela ignora todas as regras de acesso.
 
 ## Cloudflare
 
 1. Crie a conta em [cloudflare.com](https://dash.cloudflare.com).
-2. **My Profile → API Tokens → Create Token → template "Edit Cloudflare Workers"**. Restrinja à sua conta.
+2. **My Profile → API Tokens → Create Token → template "Edit Cloudflare Workers"**. Restrinja à sua conta, defina uma data de expiração e ligue 2FA no seu perfil.
 3. Copie o **Account ID** (barra lateral de Workers).
 
 | Onde no GitHub | Nome | Valor |
 | --- | --- | --- |
-| Secrets | `CLOUDFLARE_API_TOKEN` | Token criado |
-| Secrets | `CLOUDFLARE_ACCOUNT_ID` | Account ID |
+| Environments `production` e `preview` → Secrets | `CLOUDFLARE_API_TOKEN` | Token criado |
+| Environments `production` e `preview` → Secrets | `CLOUDFLARE_ACCOUNT_ID` | Account ID |
+
 | Variables | `PRODUCTION_URL` | Endereço público (depois do primeiro deploy, ex.: `https://meu-app.sua-conta.workers.dev`) |
+
+> **Por que em Environments?** Segredos em *Settings → Secrets and variables → Actions* ficam disponíveis para qualquer branch, inclusive uma que um agente enviou antes da sua revisão. Em **Settings → Environments → production → Environment secrets** eles só chegam aos jobs da branch `main`: o `npm run harness -- github-protect --apply` configura o ambiente para aceitar só a `main` e avisa se encontrar segredos no lugar errado.
+>
+> O token da Cloudflare também fica no ambiente `preview`, porque a prévia do PR precisa dele. Quem consegue rodar a prévia consegue publicar no Worker; PRs de forks não recebem segredos.
+>
+> **Repositório privado no plano gratuito do GitHub:** environments não guardam segredos. Deixe os segredos no nível do repositório (os deploys continuam funcionando) sabendo desse risco, torne o repositório público ou use GitHub Pro.
 
 Enquanto esses valores não existirem, os jobs de deploy aparecem como "pulados" no GitHub, sem erro.
 

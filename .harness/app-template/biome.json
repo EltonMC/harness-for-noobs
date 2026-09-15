@@ -6,6 +6,16 @@
   },
   "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 120 },
   "javascript": { "formatter": { "quoteStyle": "single" } },
-  "linter": { "rules": { "preset": "recommended" } },
+  "linter": {
+    "rules": {
+      "preset": "recommended",
+      "security": {
+        "noDangerouslySetInnerHtml": "error",
+        "noDangerouslySetInnerHtmlWithChildren": "error",
+        "noGlobalEval": "error",
+        "noBlankTarget": "error"
+      }
+    }
+  },
   "assist": { "actions": { "source": { "organizeImports": "on" } } }
 }

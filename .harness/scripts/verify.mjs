@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { readApplicationState } from './application-state.mjs';
 import { renderReport, runDatabaseGuard } from './database-guard.mjs';
 import { runCaptured } from './process-utils.mjs';
+import { runSupabaseConfigGuard } from './supabase-config-guard.mjs';
 import { renderFindings, scanDirectory } from './secret-scan.mjs';
 import { exists, repositoryRoot } from './skill-source-utils.mjs';
 
@@ -25,7 +26,7 @@ export function planVerification(scripts, { quick = false, e2e = false, database
   const steps = selected.map((script) => ({ script, kind: 'script' }));
   if (!quick && scripts.build) steps.push({ script: 'bundle-secrets', kind: 'bundle-secrets' });
   if (database && scripts['db:test']) {
-    if (!quick) steps.push({ script: 'db:guard', kind: 'database-guard' });
+    if (!quick) steps.push({ script: 'db:guard', kind: 'database-guard' }, { script: 'supabase:config', kind: 'config-guard' });
     steps.push(...databaseScripts.filter((script) => scripts[script]).map((script) => ({ script, kind: 'database' })));
     steps.push(...harnessDatabaseCommands.map((step) => ({ ...step, kind: 'database' })));
   }
@@ -53,7 +54,7 @@ async function localDatabaseRunning(root) {
 
 export async function runVerification({
   root = repositoryRoot, quick = false, e2e = false, database = !quick, print = console.log, isDatabaseRunning = localDatabaseRunning,
-  guardDatabase = runDatabaseGuard,
+  guardDatabase = runDatabaseGuard, guardConfig = runSupabaseConfigGuard,
 } = {}) {
   const application = await readApplicationState(root);
   const steps = planVerification(application.scripts, { quick, e2e, database });
@@ -67,6 +68,7 @@ export async function runVerification({
   const skipped = [];
   let databaseAvailability;
   let guard;
+  let configGuard;
   for (const step of steps) {
     if (step.kind === 'bundle-secrets' && failures.includes('build')) {
       skipped.push(step.script);
@@ -86,7 +88,11 @@ export async function runVerification({
     const startedAt = Date.now();
     let code;
     let output;
-    if (step.kind === 'database-guard') {
+    if (step.kind === 'config-guard') {
+      configGuard = await guardConfig({ root });
+      code = configGuard.ok ? 0 : 1;
+      output = configGuard.problems.join('\n') || 'Supabase configuration follows the security baseline.';
+    } else if (step.kind === 'database-guard') {
       guard = await guardDatabase({ root });
       code = guard.ok ? 0 : 1;
       output = renderReport(guard);
@@ -107,7 +113,8 @@ export async function runVerification({
     if (code === 0) {
       print(`✔ ${step.script} (${seconds}s)`);
     } else {
-      const summary = step.kind === 'database-guard' ? guard.problems.map((problem) => `  • ${problem}`).join('\n') : summarizeFailure(output);
+      const problems = { 'database-guard': guard?.problems, 'config-guard': configGuard?.problems }[step.kind];
+      const summary = problems ? problems.map((problem) => `  • ${problem}`).join('\n') : summarizeFailure(output);
       print(`✖ ${step.script} (${seconds}s) — log completo: ${logPath}\n${summary}`);
       failures.push(step.script);
       if (quick) break;
