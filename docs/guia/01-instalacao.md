@@ -24,7 +24,7 @@ Você faz isso **uma vez por computador**. Se algo falhar, rode `npm run harness
 4. Instale tudo de uma vez:
 
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/EltonMC/harness-for-noobs/v0.3.0/Brewfile -o "$TMPDIR/harness-Brewfile"
+   curl -fsSL https://raw.githubusercontent.com/EltonMC/harness-for-noobs/v0.4.0/Brewfile -o "$TMPDIR/harness-Brewfile"
    less "$TMPDIR/harness-Brewfile"          # confira a lista (q para sair)
    brew bundle --file="$TMPDIR/harness-Brewfile"
    ```
