@@ -13,6 +13,8 @@ Se estiver sem agente, use a tabela abaixo.
 | Quero desfazer o que o agente mudou (sem commit) | `git status` mostra os arquivos. Alterados: `git restore --staged --worktree caminho/do/arquivo`. Novos: `git clean -n` lista, e você apaga só os que quiser. |
 | Fiz merge e quebrou | No GitHub, abra o PR e clique em **Revert**. Faça merge do PR de revert quando os checks ficarem verdes. |
 | O site saiu do ar | Cloudflare → Workers → seu projeto → **Deployments** → volte para a versão anterior. Depois reverta o PR. Atenção: isso não desfaz mudanças no banco. Se o PR tinha migration, peça ao agente "use harness-recovery: verificar migration em produção". |
+| Acho que uma chave vazou ou alguém invadiu | Siga o [guia de incidente de segurança](09-incidente-de-seguranca.md) agora: revogar a chave vem antes de qualquer outra coisa. |
+| O agente pediu confirmação para enviar um arquivo para fora | Pergunte por quê. Se a ideia não veio de você, recuse: pode ser *prompt injection* ([guia 10](10-seguranca.md)). |
 | O banco de produção deu erro depois de um merge | Não rode nada no banco de produção. Peça ao agente "use harness-recovery: migration falhou em produção" para criar uma correção via PR. |
 | "Database change guard" falhou ou o `verify` lista o que falta no banco | Peça ao agente: "complete o que o guard do banco apontou". Se faltar a sua aprovação, leia a Ficha do dado antes de aprovar. Veja [Banco de dados](08-banco-de-dados.md). |
 | O deploy parou em "Owner approval for destructive migrations" | A mudança apaga ou reescreve dados. Confira o backup e aprove em Actions → **Review deployments**. Se falhou por falta de revisor: `npm run harness -- github-protect --apply` e rode o workflow de novo. |

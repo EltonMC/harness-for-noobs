@@ -39,7 +39,7 @@ test('falls back to the last lines when no error marker exists', () => {
 
 test('review: full verification plans database gates when requested', () => {
   const withDatabase = { ...scripts, 'db:lint': 'supabase db lint', 'db:test': 'supabase test db' };
-  assert.deepEqual(planVerification(withDatabase, { database: true }).map((step) => step.script), ['lint', 'typecheck', 'test', 'build', 'bundle-secrets', 'db:guard', 'db:lint', 'db:test', 'db:guards', 'db:advisors']);
+  assert.deepEqual(planVerification(withDatabase, { database: true }).map((step) => step.script), ['lint', 'typecheck', 'test', 'build', 'bundle-secrets', 'db:guard', 'supabase:config', 'db:lint', 'db:test', 'db:guards', 'db:advisors']);
   assert.deepEqual(planVerification(withDatabase, { quick: true }).map((step) => step.script), ['typecheck', 'test']);
 });
 
@@ -100,4 +100,19 @@ test('database: the guard runs in full verification and a stopped database fails
 test('database: quick verification never runs the documentation guard', () => {
   const withDatabase = { typecheck: 'tsc', test: 'vitest', 'db:test': 'supabase test db' };
   assert.ok(!planVerification(withDatabase, { quick: true, database: true }).some((step) => step.script === 'db:guard'));
+});
+
+test('security: full verification reports insecure Supabase configuration without needing Docker', async () => {
+  const root = await projectWith({ 'db:lint': pass, 'db:test': pass });
+  try {
+    await mkdir(join(root, 'supabase'));
+    await writeFile(join(root, 'supabase', 'config.toml'), '[auth]\nminimum_password_length = 6\n');
+    const lines = [];
+    const guardDatabase = async () => ({ ok: true, touchesDatabase: false, migrations: [], problems: [] });
+    const result = await runVerification({ root, print: (line) => lines.push(line), isDatabaseRunning: async () => false, guardDatabase });
+    assert.ok(result.failures.includes('supabase:config'));
+    assert.ok(lines.some((line) => /minimum_password_length/.test(line)));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

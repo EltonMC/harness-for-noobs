@@ -28,6 +28,8 @@ jobs:
       VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Detect application
         id: app
         run: |
@@ -94,6 +96,8 @@ jobs:
           fi
       - if: steps.config.outputs.enabled == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - if: steps.config.outputs.enabled == 'true'
         uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
         with:
@@ -154,6 +158,8 @@ jobs:
     steps:
       - if: env.ENABLED == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - if: env.ENABLED == 'true'
         uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
         with:
@@ -207,6 +213,8 @@ jobs:
           fi
       - if: steps.config.outputs.enabled == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - if: steps.config.outputs.enabled == 'true'
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - if: steps.config.outputs.enabled == 'true'
@@ -231,7 +239,18 @@ jobs:
         name: Smoke test the public URL
         run: |
           for _ in 1 2 3 4 5; do
-            if curl -fsS --max-time 10 "$PRODUCTION_URL" > /dev/null; then exit 0; fi
+            if headers=$(curl -fsSIL --max-time 10 "$PRODUCTION_URL"); then
+              for header in content-security-policy strict-transport-security x-content-type-options x-frame-options; do
+                if ! printf '%s' "$headers" | grep -qi "^$header:"; then
+                  if [ -f public/_headers ]; then
+                    echo "::error::Production is missing the $header security header. Check public/_headers and the Cloudflare deployment."
+                    exit 1
+                  fi
+                  echo "::warning::Production is missing the $header security header. Add public/_headers from the Harness app template (docs/guia/10-seguranca.md)."
+                fi
+              done
+              exit 0
+            fi
             sleep 10
           done
           echo "::error::Production URL did not respond. Roll back in Cloudflare (Workers > Deployments). Database migrations already ran: fix forward with a new migration PR if needed."

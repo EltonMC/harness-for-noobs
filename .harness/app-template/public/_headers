@@ -1,0 +1,12 @@
+# Security headers served by Cloudflare Workers Static Assets for every route (ADR 0015).
+# The Content-Security-Policy only allows scripts from this site and API calls to Supabase.
+# To use another service (fonts, analytics, payments), add its exact origin to the matching
+# directive in a reviewed pull request; never add 'unsafe-inline' or 'unsafe-eval' to script-src.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests
+  Strict-Transport-Security: max-age=63072000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
+  Cross-Origin-Opener-Policy: same-origin

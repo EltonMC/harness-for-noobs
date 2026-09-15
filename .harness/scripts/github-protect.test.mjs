@@ -3,11 +3,11 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { buildProtectionPlan, firstRulesetId, requiredChecks } from './github-protect.mjs';
+import { auditRepositorySecrets, buildProtectionPlan, firstRulesetId, requiredChecks } from './github-protect.mjs';
 import { repositoryRoot } from './skill-source-utils.mjs';
 
 test('requires the Harness and application checks, which report success before an application exists', () => {
-  assert.deepEqual(requiredChecks, ['Harness checks', 'Quality gate', 'Database gate']);
+  assert.deepEqual(requiredChecks, ['Harness checks', 'Quality gate', 'Database gate', 'Security scan']);
 });
 
 test('review: every required check matches a job name in a Harness-managed workflow', async () => {
@@ -58,4 +58,28 @@ test('database: creates a production-destructive environment that waits for the 
   assert.equal(step.body.prevent_self_review, false, 'a solo owner approves their own destructive change');
   assert.equal(step.optional, true);
   assert.ok(!buildProtectionPlan({ repository: 'owner/app' }).some((candidate) => candidate.id === 'destructive-database-environment'));
+});
+
+test('security: production secrets stored at repository level are reported with the fix', () => {
+  const warnings = auditRepositorySecrets(['SUPABASE_ACCESS_TOKEN', 'CLOUDFLARE_API_TOKEN', 'HARNESS_UPDATE_TOKEN', 'SUPABASE_DB_PASSWORD']);
+  assert.equal(warnings.length, 3);
+  assert.ok(warnings.every((warning) => /production|preview/.test(warning)));
+  assert.deepEqual(auditRepositorySecrets(['HARNESS_UPDATE_TOKEN']), []);
+});
+
+test('security: creates a preview environment so pull request jobs never receive production database secrets', () => {
+  const plan = buildProtectionPlan({ repository: 'owner/app' });
+  const preview = plan.find((step) => step.id === 'preview-environment');
+  assert.equal(preview.path, 'repos/owner/app/environments/preview');
+  assert.equal(preview.optional, false);
+});
+
+test('review: production environments allow only the main branch explicitly, not "protected branches"', () => {
+  const plan = buildProtectionPlan({ repository: 'owner/app', reviewerId: 7 });
+  for (const environment of ['production', 'production-destructive']) {
+    const create = plan.find((step) => step.path === `repos/owner/app/environments/${environment}`);
+    assert.deepEqual(create.body.deployment_branch_policy, { protected_branches: false, custom_branch_policies: true });
+    const policy = plan.find((step) => step.method === 'BRANCH_POLICY' && step.path === `repos/owner/app/environments/${environment}/deployment-branch-policies`);
+    assert.deepEqual(policy.body, { name: 'main', type: 'branch' });
+  }
 });

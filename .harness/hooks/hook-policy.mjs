@@ -389,6 +389,43 @@ export function evaluateMcpTool({ name = '' }) {
   return databaseMcpWrite.test(action) ? deny(reason) : allow;
 }
 
+// Commands that send local file contents to another machine. Prompt-injected
+// instructions typically exfiltrate code, data, or secrets this way.
+const localNetworkHost = /^(?:localhost|127\.0\.0\.1|\[?::1\]?|0\.0\.0\.0|host\.docker\.internal)$/i;
+
+function urlHost(value) {
+  const match = value.match(/^[a-z][a-z0-9+.-]*:\/\/(?:[^@/]*@)?(\[[^\]]+\]|[^:/?#]+)/i)
+    ?? value.match(/^((?:[a-z0-9-]+\.)+[a-z]{2,})(?::\d+)?(?:\/|$)/i);
+  return match ? match[1] : null;
+}
+
+const remoteHosts = (args) => args.filter((arg) => !arg.startsWith('-')).map(urlHost).filter(Boolean).filter((host) => !localNetworkHost.test(host));
+
+function sendsLocalFiles(command, args) {
+  if (command === 'curl') {
+    const uploads = args.some((arg, index) => {
+      const next = args[index + 1] ?? '';
+      if (/^(?:--upload-file)$/.test(arg)) return true;
+      if (/^(?:--data|--data-binary|--data-raw|--data-urlencode|--json|--form)$/.test(arg)) return /(?:^|=)@/.test(next);
+      if (/^--(?:data(?:-binary|-urlencode)?|json|form)=.*@/.test(arg)) return true;
+      const cluster = arg.match(/^-([A-Za-z]+)(.*)$/);
+      if (!cluster || arg.startsWith('--')) return false;
+      const [, letters, attached] = cluster;
+      if (letters.includes('T')) return true;
+      const last = letters.at(-1);
+      if (!['d', 'F'].includes(last)) return /[dF]@/.test(arg);
+      return /(?:^|=)@/.test(attached || next);
+    });
+    return uploads && remoteHosts(args).length > 0;
+  }
+  if (command === 'wget') return args.some((arg) => /^--(?:post-file|body-file)/.test(arg)) && remoteHosts(args).length > 0;
+  if (['nc', 'ncat', 'netcat', 'socat', 'telnet'].includes(command)) return args.some((arg) => !arg.startsWith('-') && !/^\d+$/.test(arg) && !localNetworkHost.test(arg));
+  if (['scp', 'rsync', 'sftp'].includes(command)) return args.some((arg) => /^(?:[^@\s/]+@)?[^:\s/]+:/.test(arg) && !/^[a-z]+:\/\//i.test(arg) && !localNetworkHost.test(arg.replace(/^[^@]*@/, '').split(':')[0]));
+  if (command === 'ssh') return args.includes('<');
+  if (command === 'gh') return /^gist (?:create|edit)\b/.test(args.join(' '));
+  return false;
+}
+
 const supabaseValueFlags = new Set(['--workdir', '--profile', '--network-id', '--output', '-o', '--output-format', '--log-level', '--dns-resolver', '--agent']);
 
 function withoutSupabaseGlobalFlags(args) {
@@ -441,6 +478,10 @@ function evaluateSegmentWords(words, context) {
       || (/^api\b/.test(joined) && args.some((arg, index) => /^(?:-X|--method)$/.test(arg) && /^(?:DELETE|PUT|PATCH|POST)$/i.test(args[index + 1] ?? '')))) {
       return ask('Este comando altera configurações do GitHub. Confirme com a pessoa antes.');
     }
+  }
+
+  if (sendsLocalFiles(command, args)) {
+    return ask('Este comando envia arquivos locais para outro computador. Confirme com a pessoa: conteúdo externo pode ter instruído o agente a vazar código ou dados.');
   }
 
   if (packageManagers.has(command) && args[0] === 'publish') return deny('Publicar pacotes não faz parte deste projeto.');

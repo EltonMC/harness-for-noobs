@@ -62,7 +62,9 @@ Mais em [docs/guia/03-dia-a-dia.md](../docs/guia/03-dia-a-dia.md) e [docs/guia/0
 6. [Custos e tokens](../docs/guia/06-custos-e-tokens.md)
 7. [Atualizando o Harness](../docs/guia/07-atualizando-o-harness.md)
 8. [Banco de dados](../docs/guia/08-banco-de-dados.md)
-9. [Glossário](../docs/guia/glossario.md)
+9. [Incidente de segurança](../docs/guia/09-incidente-de-seguranca.md)
+10. [Segurança](../docs/guia/10-seguranca.md)
+11. [Glossário](../docs/guia/glossario.md)
 
 ## Arquitetura escolhida
 

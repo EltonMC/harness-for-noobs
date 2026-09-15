@@ -7,7 +7,8 @@ description: Deliver a React and Supabase feature through a scoped work item, te
 2. **Work item.** For `session` and larger, create one from `.harness/templates/work-item.md`; fill only the sections that apply. Readiness `FAIL` blocks work; `CONCERNS` need the owner's accepted condition.
 3. **Branch.** Never work on `main`. Stay on the current `feature/`/`fix/`/`chore/` branch when it holds this work; otherwise `git switch -c feature/<name>` (or `git switch <name>` if it exists).
 4. **Context, cheaply.** Start from the work item (and approved handoff when upstream-backed). Use the `harness-scout` subagent when available to locate files instead of reading broadly. Search `.harness/memory/` by domain terms; read only matches. Open `_bmad-output/` only for a mapped, unresolved decision.
-5. **Specialists only when touched.** Schema → `harness-database-steward`. Who can read/write data → `harness-supabase-security` (access matrix first). Screens → `harness-ux-tdd`.
+5. **Specialists only when touched.** Schema → `harness-database-steward`. Who can read/write data, sign-in, Storage, or Edge Functions → `harness-supabase-security` (access matrix first). Screens → `harness-ux-tdd`.
+   **Threat model.** When the work touches sign-in, personal data, payments, file uploads, admin actions, third-party services, or Edge Functions, fill the work item's Security section using `.harness/context/security-patterns.md`; each mitigation gets a test.
 6. **Red.** Write the smallest behavior test; run it; confirm it fails for the expected reason. Record the command and the one-line failure.
 7. **Green.** Implement the minimum to pass. Then refactor with tests green.
 8. **Verify.** `npm run harness -- verify` (full) before review; it prints only failures and keeps logs in `.harness/logs/`. Do not paste whole logs into the conversation or the work item.

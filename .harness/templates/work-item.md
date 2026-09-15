@@ -29,6 +29,15 @@ What the user can do when this is done, in one or two sentences.
 - Access matrix and DBA review:
 - Allow/deny tests:
 
+## Security (if applicable)
+
+<!-- Sign-in, personal data, payments, uploads, admin actions, third-party services, or Edge Functions. See .harness/context/security-patterns.md. -->
+
+- Protecting: data, accounts, money, availability:
+- Abuse cases (who, how; STRIDE prompts):
+- Mitigations and the test that proves each:
+- New third-party origins added to `public/_headers`:
+
 ## UX contract (if applicable)
 
 - User job and primary action:

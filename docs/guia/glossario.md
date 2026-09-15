@@ -40,6 +40,17 @@
 | **Cloudflare Workers** | Onde a aplicação fica publicada na internet. |
 | **Variável de ambiente** | Configuração passada fora do código (ex.: `.env.local`, Secrets do GitHub). |
 | **Segredo** | Senha, token ou chave privada. Nunca em arquivo do projeto. |
+| **Environment (GitHub)** | Cofre de segredos que só libera as chaves para jobs autorizados (ex.: só a partir da `main`). |
+| **XSS** | Ataque que injeta um script no seu site para roubar a sessão de quem estiver logado. |
+| **CSP** | *Content Security Policy*: cabeçalho que diz ao navegador de onde o site pode carregar scripts e dados. |
+| **Cabeçalhos de segurança** | Instruções enviadas junto com cada página (CSP, HSTS…) que ativam proteções do navegador. |
+| **2FA / MFA** | Segundo fator de login (código no celular), além da senha. |
+| **CAPTCHA** | Desafio que separa pessoas de robôs em formulários públicos. |
+| **Prompt injection** | Texto escondido em páginas, issues ou arquivos que tenta dar ordens ao agente de IA. |
+| **Análise estática (SAST)** | Robô que lê o código procurando padrões perigosos, sem executar. |
+| **Teste dinâmico (DAST)** | Robô que visita o site publicado procurando falhas visíveis de fora. |
+| **Pentest** | Teste de invasão feito por especialistas contratados. |
+| **ANPD** | Autoridade Nacional de Proteção de Dados: órgão que fiscaliza a LGPD e recebe comunicados de incidentes. |
 | **Work item** | Arquivo curto que descreve uma tarefa: objetivo, critérios de aceite e evidências. |
 | **Handoff** | Resumo aprovado do planejamento, entregue para a implementação. |
 | **ADR** | Registro de uma decisão de arquitetura e do porquê. |
