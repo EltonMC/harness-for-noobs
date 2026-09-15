@@ -2,7 +2,7 @@
 
 Mudanças do Harness, da mais nova para a mais antiga. Cada versão diz se você precisa fazer algo depois do merge do PR de atualização.
 
-## [Não lançado]
+## [0.4.0] — 2026-09-15
 
 ### O que mudou
 

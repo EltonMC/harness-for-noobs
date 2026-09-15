@@ -21,7 +21,7 @@ Guia detalhado, com macOS, Windows e Linux: **[docs/guia/01-instalacao.md](../do
 
 ```bash
 # 1. Ferramentas (macOS). Windows/Linux: veja o guia.
-curl -fsSL https://raw.githubusercontent.com/EltonMC/harness-for-noobs/v0.3.0/Brewfile -o "$TMPDIR/harness-Brewfile"
+curl -fsSL https://raw.githubusercontent.com/EltonMC/harness-for-noobs/v0.4.0/Brewfile -o "$TMPDIR/harness-Brewfile"
 brew bundle --file="$TMPDIR/harness-Brewfile"
 
 # 2. Crie SEU projeto a partir do Harness (não use git clone)
